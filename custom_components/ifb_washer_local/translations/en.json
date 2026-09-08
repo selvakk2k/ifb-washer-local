@@ -8,6 +8,25 @@
           "host": "IP Address",
           "port": "Port"
         }
+      },
+      "family": {
+        "title": "Select Appliance Series",
+        "description": "Select your IFB washing machine series to load the matching program dial matrix.",
+        "data": {
+          "family": "Model Series"
+        }
+      },
+      "verify": {
+        "title": "Visual Verification Wizard",
+        "description": "Please check your washing machine display screen. Home Assistant has sent a test command to select '{program_name}' (Code {program_code}).\n\nDoes your machine's screen show '{program_name}'?",
+        "data": {
+          "verified": "The screen displays this program",
+          "skip_verification": "Skip visual verification"
+        }
+      },
+      "custom": {
+        "title": "Custom Configuration",
+        "description": "Your IFB washing machine will be configured in manual mode. You can define custom cycle codes if your machine layout differs from standard series."
       }
     },
     "error": {
@@ -29,6 +48,12 @@
       },
       "time_remaining": {
         "name": "Time Remaining"
+      },
+      "estimated_end_time": {
+        "name": "Estimated Completion Time"
+      },
+      "cycle_progress": {
+        "name": "Cycle Progress"
       },
       "motor_rpm": {
         "name": "Motor Speed"
@@ -52,6 +77,9 @@
       },
       "child_lock": {
         "name": "Child Lock Active"
+      },
+      "problem": {
+        "name": "Problem"
       }
     },
     "select": {
@@ -86,3 +114,4 @@
     }
   }
 }
+

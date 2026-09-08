@@ -46,10 +46,12 @@ class IFBWasherClient:
         port: int = DEFAULT_PORT,
         session: Optional[aiohttp.ClientSession] = None,
         timeout: float = 5.0,
+        program_map: Optional[dict[int, str]] = None,
     ) -> None:
         """Initialize the client."""
         self.host = host
         self.port = port
+        self.program_map = program_map
         self._session = session
         self._owns_session = session is None
         self._timeout = timeout
@@ -87,7 +89,7 @@ class IFBWasherClient:
         """Query the washer and return the current state."""
         query_pkt = build_status_query()
         resp_bytes = await self._send_raw_command(query_pkt)
-        return parse_status_frame(resp_bytes)
+        return parse_status_frame(resp_bytes, program_map=self.program_map)
 
     async def select_program(self, program_code: int, spin_rpm: int = 1000, temp_c: int = 40) -> WasherState:
         """Select a wash program and return the updated state."""

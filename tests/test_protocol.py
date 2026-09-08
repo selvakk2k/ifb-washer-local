@@ -92,3 +92,76 @@ def test_program_selection_packet():
     c1, c2 = compute_checksums(pkt[:-2])
     assert pkt[-2] == c1
     assert pkt[-1] == c2
+
+
+def test_verified_15_programs_mapping():
+    """Verify the 15 hardware-verified dial program codes."""
+    from ifb_washer_local.const import (
+        PROGRAM_CODES_742,
+        PROGRAM_CODES_WASHER_DRYER,
+    )
+
+    assert PROGRAM_CODES_WASHER_DRYER == PROGRAM_CODES_742
+    assert len(PROGRAM_CODES_WASHER_DRYER) == 15
+    assert PROGRAM_CODES_WASHER_DRYER[1] == "Wash + Dry 2Hr"
+    assert PROGRAM_CODES_WASHER_DRYER[2] == "Wash + Dry 4Hr"
+    assert PROGRAM_CODES_WASHER_DRYER[12] == "Cotton"
+    assert PROGRAM_CODES_WASHER_DRYER[13] == "Mix / Daily"
+    assert PROGRAM_CODES_WASHER_DRYER[14] == "Express 15'"
+    assert PROGRAM_CODES_WASHER_DRYER[15] == "Tub Clean"
+
+
+def test_family_program_matrices():
+    """Verify family matrices are populated correctly."""
+    from ifb_washer_local.const import (
+        FAMILY_PROGRAM_MATRICES,
+        PROGRAM_CODES_FRONT_LOAD,
+        PROGRAM_CODES_TOP_LOAD,
+        ApplianceFamily,
+    )
+
+    assert ApplianceFamily.WASHER_DRYER in FAMILY_PROGRAM_MATRICES
+    assert ApplianceFamily.FRONT_LOAD in FAMILY_PROGRAM_MATRICES
+    assert ApplianceFamily.TOP_LOAD_SMART in FAMILY_PROGRAM_MATRICES
+
+    assert PROGRAM_CODES_FRONT_LOAD[1] == "Mix / Daily"
+    assert PROGRAM_CODES_FRONT_LOAD[20] == "Spin Dry / Rinse"
+    assert PROGRAM_CODES_TOP_LOAD[1] == "Mix / Daily"
+    assert PROGRAM_CODES_TOP_LOAD[10] == "Tub Clean"
+
+
+def test_signature_auto_detection():
+    """Verify reverse-engineering of cycle names via telemetry signatures."""
+    from ifb_washer_local.protocol import detect_program_from_telemetry
+
+    # Express 15'
+    assert detect_program_from_telemetry(duration_min=15, temp_c=0, spin_rpm=800) == "Express 15'"
+    # Cotton (with +/- 2 min variance)
+    assert detect_program_from_telemetry(duration_min=165, temp_c=60, spin_rpm=1400) == "Cotton"
+    # Wash + Dry 2Hr (dry flag enabled)
+    assert detect_program_from_telemetry(duration_min=120, temp_c=40, spin_rpm=1000, is_dry_enabled=True) == "Wash + Dry 2Hr"
+    # Wash + Dry 2Hr should not match without dry flag
+    assert detect_program_from_telemetry(duration_min=120, temp_c=40, spin_rpm=1000, is_dry_enabled=False) is None
+
+
+def test_error_fault_parsing():
+    """Verify decoding of problem conditions in telemetry frame."""
+    # Base packet with Tap error code (2) injected at byte 32
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    raw[32] = 2  # tAP error
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2] = c1
+    raw[-1] = c2
+
+    state = parse_status_frame(bytes(raw))
+    assert state.has_problem is True
+    assert state.error_code == "tAP"
+    assert "Tap" in state.error_description
+
+
+def test_parse_status_frame_custom_map():
+    """Verify parsing with a custom program dictionary."""
+    custom_map = {13: "Custom Cycle"}
+    raw = bytes.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    state = parse_status_frame(raw, program_map=custom_map)
+    assert state.program_name == "Custom Cycle"

@@ -29,6 +29,8 @@ class IFBWasherChildLockSwitch(
 ):
     """Switch to toggle the washer's Child Lock feature."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator: IFBWasherCoordinator) -> None:
         """Initialize the switch."""
         super().__init__(coordinator)

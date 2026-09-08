@@ -67,6 +67,7 @@ async def async_setup_entry(
 class IFBWasherButton(CoordinatorEntity[IFBWasherCoordinator], ButtonEntity):
     """Representation of an IFB Washer action button."""
 
+    _attr_has_entity_name = True
     entity_description: IFBWasherButtonEntityDescription
 
     def __init__(

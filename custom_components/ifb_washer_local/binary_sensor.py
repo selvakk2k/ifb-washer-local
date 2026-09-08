@@ -48,6 +48,12 @@ BINARY_SENSOR_TYPES: tuple[IFBWasherBinarySensorEntityDescription, ...] = (
         icon="mdi:account-lock",
         is_on_fn=lambda state: state.child_lock,
     ),
+    IFBWasherBinarySensorEntityDescription(
+        key="problem",
+        translation_key="problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        is_on_fn=lambda state: state.has_problem,
+    ),
 )
 
 
@@ -69,6 +75,7 @@ class IFBWasherBinarySensor(
 ):
     """Representation of an IFB Washer binary sensor."""
 
+    _attr_has_entity_name = True
     entity_description: IFBWasherBinarySensorEntityDescription
 
     def __init__(
@@ -88,3 +95,14 @@ class IFBWasherBinarySensor(
         if self.coordinator.data is None:
             return None
         return self.entity_description.is_on_fn(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra diagnostic attributes for sensors."""
+        if self.entity_description.key == "problem" and self.coordinator.data is not None:
+            return {
+                "error_code": self.coordinator.data.error_code,
+                "error_description": self.coordinator.data.error_description,
+            }
+        return None
+

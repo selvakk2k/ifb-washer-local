@@ -10,8 +10,11 @@ DOMAIN = "ifb_washer_local"
 CONF_HOST = "host"
 CONF_PORT = "port"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_FAMILY = "family"
+CONF_CUSTOM_PROGRAMS = "custom_programs"
 
 DEFAULT_PORT = 80
+DEFAULT_FAMILY = "washer_dryer"
 DEFAULT_SCAN_INTERVAL_STANDBY = 15
 DEFAULT_SCAN_INTERVAL_RUNNING = 5
 
@@ -22,3 +25,4 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.SWITCH,
 ]
+

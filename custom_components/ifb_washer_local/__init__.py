@@ -26,7 +26,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     session = async_get_clientsession(hass)
     client = IFBWasherClient(host=host, port=port, session=session)
-    coordinator = IFBWasherCoordinator(hass, client)
+    coordinator = IFBWasherCoordinator(hass, client, entry=entry)
 
     await coordinator.async_config_entry_first_refresh()
 

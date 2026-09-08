@@ -11,7 +11,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ifb_washer_local.const import (
-    PROGRAM_CODES_742,
     SPIN_SPEED_OPTIONS,
     TEMPERATURE_OPTIONS,
 )
@@ -22,9 +21,9 @@ from .coordinator import IFBWasherCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 # Reverse mappings for easy option-to-code lookup
-PROGRAM_NAME_TO_CODE = {name: code for code, name in PROGRAM_CODES_742.items()}
 SPIN_NAME_TO_CODE = {name: code for code, name in SPIN_SPEED_OPTIONS.items()}
 TEMP_NAME_TO_CODE = {name: code for code, name in TEMPERATURE_OPTIONS.items()}
+
 
 
 async def async_setup_entry(
@@ -46,6 +45,8 @@ async def async_setup_entry(
 class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
     """Selector entity for choosing wash programs."""
 
+    _attr_has_entity_name = True
+
     def __init__(self, coordinator: IFBWasherCoordinator) -> None:
         """Initialize the program selector."""
         super().__init__(coordinator)
@@ -56,7 +57,11 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
         )
         self._attr_unique_id = f"{coordinator.client.host}_program_select"
         self._attr_device_info = coordinator.device_info
-        self._attr_options = list(PROGRAM_CODES_742.values())
+
+    @property
+    def options(self) -> list[str]:
+        """Return the available program options for this appliance family."""
+        return list(self.coordinator.program_map.values())
 
     @property
     def current_option(self) -> str | None:
@@ -67,17 +72,19 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected wash program."""
-        program_code = PROGRAM_NAME_TO_CODE.get(option)
-        if program_code is None:
-            _LOGGER.warning("Unknown program option selected: %s", option)
-            return
+        for code, name in self.coordinator.program_map.items():
+            if name == option:
+                await self.coordinator.client.select_program(code)
+                await self.coordinator.async_request_refresh()
+                return
+        _LOGGER.warning("Unknown program option selected: %s", option)
 
-        await self.coordinator.client.select_program(program_code)
-        await self.coordinator.async_request_refresh()
 
 
 class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
     """Selector entity for choosing spin speeds."""
+
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: IFBWasherCoordinator) -> None:
         """Initialize the spin speed selector."""
@@ -111,6 +118,8 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
 
 class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
     """Selector entity for choosing wash temperatures."""
+
+    _attr_has_entity_name = True
 
     def __init__(self, coordinator: IFBWasherCoordinator) -> None:
         """Initialize the temperature selector."""

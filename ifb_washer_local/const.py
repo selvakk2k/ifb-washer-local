@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 DEFAULT_PORT = 80
 GAINSPAN_PROFILE_ENDPOINT = "/gainspan/profile/ifb"
@@ -102,25 +102,123 @@ DOOR_STATE_LOCKED = 2
 DOOR_STATE_LOCKING = 3
 DOOR_STATE_UNLOCKING = 4
 
-# Verified Program Codes for IFB Washer Dryer 742 Series
-# Hardware verified: Program 12 = Cotton, Program 13 = Mix / Daily, Program 14 = Tub Clean
-PROGRAM_CODES_742: dict[int, str] = {
-    1: "Synthetic",
-    2: "Baby Wear",
-    3: "Express 15'",
-    4: "Bulky Beddings",
-    5: "CradleWash",
-    6: "Rinse + Spin",
+
+class ApplianceFamily(str, Enum):
+    """Supported appliance families."""
+
+    WASHER_DRYER = "washer_dryer"
+    FRONT_LOAD = "front_load"
+    TOP_LOAD_SMART = "top_load_smart"
+    CUSTOM = "custom"
+    AUTO_DETECT = "auto_detect"
+
+
+# Verified Program Codes for IFB Washer Dryer 742 Series (WD Executive ZXS)
+# Hardware verified by 14-position physical clockwise dial rotation:
+PROGRAM_CODES_WASHER_DRYER: dict[int, str] = {
+    1: "Wash + Dry 2Hr",
+    2: "Wash + Dry 4Hr",
+    3: "Steam & Dry",
+    4: "Refresh",
+    5: "Power Steam",
+    6: "CradleWash®",
     7: "Wool",
-    8: "Sports Wear",
-    9: "Wash + Dry 4Hr",
-    10: "Wash + Dry 2Hr",
-    11: "Steam & Dry",
+    8: "Bulky",
+    9: "Baby Wear",
+    10: "Anti-Allergen",
+    11: "Synthetic",
     12: "Cotton",
     13: "Mix / Daily",
-    14: "Tub Clean",
-    15: "Refresh",
-    16: "PowerSteam",
+    14: "Express 15'",
+    15: "Tub Clean",
+}
+
+# Alias for backwards compatibility
+PROGRAM_CODES_742 = PROGRAM_CODES_WASHER_DRYER
+
+# Front Load Series (Senator / Executive Plus Series - from manual FL_790_G)
+PROGRAM_CODES_FRONT_LOAD: dict[int, str] = {
+    1: "Mix / Daily",
+    2: "Cotton",
+    3: "Uniform / Linen",
+    4: "Baby Wear",
+    5: "Anti-Allergen",
+    6: "Express 30'",
+    7: "Express 15'",
+    8: "Refresh",
+    9: "Wool",
+    10: "Synthetic",
+    11: "CradleWash®",
+    12: "Bulky / Bedding",
+    13: "Sports Wear",
+    14: "Dark Wash",
+    15: "Jeans",
+    16: "PowerSteam®",
+    17: "Inner Wear",
+    18: "Shirts",
+    19: "Tub Clean",
+    20: "Spin Dry / Rinse",
+}
+
+# Smart Top Load Series (SWID / SID Series - from manual TL_360_UM)
+PROGRAM_CODES_TOP_LOAD: dict[int, str] = {
+    1: "Mix / Daily",
+    2: "Cotton",
+    3: "Express 30'",
+    4: "Synthetic",
+    5: "Delicates",
+    6: "StainFighter™",
+    7: "Bulky",
+    8: "Anti-Allergen",
+    9: "Rinse + Spin",
+    10: "Tub Clean",
+    11: "Saree",
+    12: "Baby Wear",
+    13: "Uniform",
+    14: "Jeans",
+    15: "Sports Wear",
+}
+
+FAMILY_PROGRAM_MATRICES: dict[str, dict[int, str]] = {
+    ApplianceFamily.WASHER_DRYER: PROGRAM_CODES_WASHER_DRYER,
+    ApplianceFamily.FRONT_LOAD: PROGRAM_CODES_FRONT_LOAD,
+    ApplianceFamily.TOP_LOAD_SMART: PROGRAM_CODES_TOP_LOAD,
+}
+
+# Telemetry Signature Definition & Lookup Table for Reverse-Engineering Programs
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class ProgramSignature:
+    """Telemetry signature tuple for program auto-detection."""
+
+    name: str
+    duration_min: int
+    temp_c: int
+    spin_rpm: int
+    is_dry_enabled: bool = False
+
+
+TELEMETRY_SIGNATURES: tuple[ProgramSignature, ...] = (
+    ProgramSignature("Express 15'", 15, 0, 800, False),
+    ProgramSignature("Refresh", 30, 0, 0, False),
+    ProgramSignature("CradleWash®", 37, 30, 400, False),
+    ProgramSignature("Wool", 43, 30, 800, False),
+    ProgramSignature("Mix / Daily", 72, 40, 1000, False),
+    ProgramSignature("Anti-Allergen", 115, 60, 1000, False),
+    ProgramSignature("Cotton", 163, 60, 1400, False),
+    ProgramSignature("Wash + Dry 2Hr", 120, 40, 1000, True),
+    ProgramSignature("Wash + Dry 4Hr", 240, 40, 1200, True),
+)
+
+# Common Telemetry Fault Codes
+ERROR_CODES: dict[int, tuple[str, str]] = {
+    0: ("", "No Error"),
+    1: ("door", "Door Open / Not Latched"),
+    2: ("tAP", "Water Tap Closed / Low Pressure"),
+    3: ("drn", "Drain Blocked / Pump Issue"),
+    4: ("unb", "Unbalanced Load"),
 }
 
 # Spin Speed Options (Option ID 5)
@@ -164,3 +262,4 @@ TEMPERATURE_CELSIUS_TO_CODE: dict[int, int] = {
     60: 5,
     95: 6,
 }
+

@@ -22,9 +22,12 @@ from .const import (
     HIL_OPTION_SPIN,
     MachineState,
     PROGRAM_CODES_742,
+    PROGRAM_CODES_WASHER_DRYER,
     SPIN_SPEED_OPTIONS,
     STATE_LABELS,
+    TELEMETRY_SIGNATURES,
     TEMPERATURE_OPTIONS,
+    ERROR_CODES,
 )
 from .exceptions import IFBProtocolError
 
@@ -141,6 +144,8 @@ class WasherState:
     motor_rpm: int
     water_temperature_c: int
     raw_hex: str
+    error_code: str = ""
+    error_description: str = ""
 
     @property
     def is_running(self) -> bool:
@@ -183,8 +188,36 @@ class WasherState:
         """Return True if the wash cycle has completed."""
         return self.state_code == MachineState.COMPLETE
 
+    @property
+    def has_problem(self) -> bool:
+        """Return True if an error or fault condition is detected."""
+        return bool(self.error_code)
 
-def parse_status_frame(data: bytes) -> WasherState:
+
+def detect_program_from_telemetry(
+    duration_min: int,
+    temp_c: int = 0,
+    spin_rpm: int = 0,
+    is_dry_enabled: bool = False,
+    tolerance_minutes: int = 5,
+) -> str | None:
+    """Reverse-engineer program identity from running telemetry parameters."""
+    for sig in TELEMETRY_SIGNATURES:
+        if abs(sig.duration_min - duration_min) <= tolerance_minutes:
+            if sig.is_dry_enabled != is_dry_enabled:
+                continue
+            if sig.temp_c != 0 and temp_c != 0 and sig.temp_c != temp_c:
+                continue
+            if sig.spin_rpm != 0 and spin_rpm != 0 and sig.spin_rpm != spin_rpm:
+                continue
+            return sig.name
+    return None
+
+
+def parse_status_frame(
+    data: bytes,
+    program_map: dict[int, str] | None = None,
+) -> WasherState:
     """Parse and validate a raw binary response frame into a WasherState instance."""
     if len(data) < 36:
         raise IFBProtocolError(f"Frame length {len(data)} is too short for status parsing")
@@ -199,8 +232,9 @@ def parse_status_frame(data: bytes) -> WasherState:
             f"Checksum mismatch: expected ({expected_c1}, {expected_c2}), got ({data[-2]}, {data[-1]})"
         )
 
+    active_program_map = program_map if program_map is not None else PROGRAM_CODES_WASHER_DRYER
     prog_id = data[6]
-    prog_name = PROGRAM_CODES_742.get(prog_id, f"Program {prog_id}")
+    prog_name = active_program_map.get(prog_id, f"Program {prog_id}")
 
     spin_opt = data[8]
     spin_name = SPIN_SPEED_OPTIONS.get(spin_opt, f"{spin_opt}")
@@ -222,6 +256,27 @@ def parse_status_frame(data: bytes) -> WasherState:
     door_raw = data[31]
     door_locked = door_raw in (DOOR_STATE_CLOSED_OR_LOCKED, DOOR_STATE_LOCKED)
 
+    # Fault / Problem Detection
+    error_code = ""
+    error_desc = ""
+    if len(data) >= 34:
+        for candidate_idx in (32, 29):
+            candidate_val = data[candidate_idx]
+            if candidate_val in ERROR_CODES and candidate_val != 0:
+                error_code, error_desc = ERROR_CODES[candidate_val]
+                break
+
+    # If actively running but door is unlatched, register door fault
+    if not error_code and not door_locked:
+        if state_code in (
+            MachineState.STARTING,
+            MachineState.PRE_WASH,
+            MachineState.MAIN_WASH,
+            MachineState.FINAL_SPIN,
+            MachineState.INTERMEDIATE_SPIN,
+        ):
+            error_code, error_desc = ERROR_CODES[1]
+
     return WasherState(
         program_code=prog_id,
         program_name=prog_name,
@@ -237,4 +292,7 @@ def parse_status_frame(data: bytes) -> WasherState:
         motor_rpm=motor_rpm,
         water_temperature_c=water_temp,
         raw_hex=data.hex(),
+        error_code=error_code,
+        error_description=error_desc,
     )
+

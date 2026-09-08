@@ -12,12 +12,10 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature, UnitOfTime
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-
-from ifb_washer_local import WasherState
 
 from .const import DOMAIN
 from .coordinator import IFBWasherCoordinator
@@ -27,7 +25,7 @@ from .coordinator import IFBWasherCoordinator
 class IFBWasherSensorEntityDescription(SensorEntityDescription):
     """Describes an IFB Washer sensor entity."""
 
-    value_fn: Callable[[WasherState], str | int | float | None]
+    value_fn: Callable[[IFBWasherCoordinator], Any]
 
 
 SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
@@ -35,13 +33,13 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         key="state",
         translation_key="machine_state",
         icon="mdi:washing-machine",
-        value_fn=lambda state: state.state_name,
+        value_fn=lambda coord: coord.data.state_name if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="program",
         translation_key="program",
         icon="mdi:format-list-bulleted-type",
-        value_fn=lambda state: state.program_name,
+        value_fn=lambda coord: coord.data.program_name if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="time_remaining",
@@ -50,7 +48,22 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda state: state.remaining_minutes,
+        value_fn=lambda coord: coord.data.remaining_minutes if coord.data else None,
+    ),
+    IFBWasherSensorEntityDescription(
+        key="estimated_end_time",
+        translation_key="estimated_end_time",
+        icon="mdi:clock-end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=lambda coord: coord.estimated_end_time,
+    ),
+    IFBWasherSensorEntityDescription(
+        key="cycle_progress",
+        translation_key="cycle_progress",
+        icon="mdi:progress-clock",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coord: coord.cycle_progress,
     ),
     IFBWasherSensorEntityDescription(
         key="motor_rpm",
@@ -58,7 +71,7 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         icon="mdi:rotate-right",
         native_unit_of_measurement="RPM",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda state: state.motor_rpm,
+        value_fn=lambda coord: coord.data.motor_rpm if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="water_temperature",
@@ -67,19 +80,19 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda state: state.water_temperature_c,
+        value_fn=lambda coord: coord.data.water_temperature_c if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="spin_speed_setting",
         translation_key="spin_speed_setting",
         icon="mdi:speedometer",
-        value_fn=lambda state: state.spin_speed_name,
+        value_fn=lambda coord: coord.data.spin_speed_name if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="temperature_setting",
         translation_key="temperature_setting",
         icon="mdi:thermometer-chevron-up",
-        value_fn=lambda state: state.temperature_name,
+        value_fn=lambda coord: coord.data.temperature_name if coord.data else None,
     ),
 )
 
@@ -99,6 +112,7 @@ async def async_setup_entry(
 class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
     """Representation of an IFB Washer sensor."""
 
+    _attr_has_entity_name = True
     entity_description: IFBWasherSensorEntityDescription
 
     def __init__(
@@ -113,8 +127,7 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
         self._attr_device_info = coordinator.device_info
 
     @property
-    def native_value(self) -> str | int | float | None:
+    def native_value(self) -> Any:
         """Return the state of the sensor."""
-        if self.coordinator.data is None:
-            return None
-        return self.entity_description.value_fn(self.coordinator.data)
+        return self.entity_description.value_fn(self.coordinator)
+
