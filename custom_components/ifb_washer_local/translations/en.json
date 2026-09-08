@@ -1,0 +1,88 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to IFB Washing Machine",
+        "description": "Enter the local network IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.",
+        "data": {
+          "host": "IP Address",
+          "port": "Port"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the washing machine. Please verify the IP address and ensure the machine is powered on.",
+      "invalid_response": "Received an unexpected response format from the appliance.",
+      "unknown": "Unexpected error occurred during connection test."
+    },
+    "abort": {
+      "already_configured": "This IFB washing machine is already configured in Home Assistant."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "machine_state": {
+        "name": "Machine State"
+      },
+      "program": {
+        "name": "Active Program"
+      },
+      "time_remaining": {
+        "name": "Time Remaining"
+      },
+      "motor_rpm": {
+        "name": "Motor Speed"
+      },
+      "water_temperature": {
+        "name": "Water Temperature"
+      },
+      "spin_speed_setting": {
+        "name": "Selected Spin Speed"
+      },
+      "temperature_setting": {
+        "name": "Selected Temperature"
+      }
+    },
+    "binary_sensor": {
+      "running": {
+        "name": "Running"
+      },
+      "door_locked": {
+        "name": "Door"
+      },
+      "child_lock": {
+        "name": "Child Lock Active"
+      }
+    },
+    "select": {
+      "program_select": {
+        "name": "Program"
+      },
+      "spin_speed_select": {
+        "name": "Spin Speed"
+      },
+      "temperature_select": {
+        "name": "Temperature"
+      }
+    },
+    "button": {
+      "start": {
+        "name": "Start"
+      },
+      "pause": {
+        "name": "Pause"
+      },
+      "cancel": {
+        "name": "Cancel"
+      },
+      "power_off": {
+        "name": "Turn Off"
+      }
+    },
+    "switch": {
+      "child_lock_switch": {
+        "name": "Child Lock"
+      }
+    }
+  }
+}

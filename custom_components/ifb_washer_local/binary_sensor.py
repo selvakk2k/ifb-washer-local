@@ -1,0 +1,90 @@
+"""Binary sensor platform for IFB Washer Local integration."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from ifb_washer_local import WasherState
+
+from .const import DOMAIN
+from .coordinator import IFBWasherCoordinator
+
+
+@dataclass(frozen=True, kw_only=True)
+class IFBWasherBinarySensorEntityDescription(BinarySensorEntityDescription):
+    """Describes an IFB Washer binary sensor entity."""
+
+    is_on_fn: Callable[[WasherState], bool]
+
+
+BINARY_SENSOR_TYPES: tuple[IFBWasherBinarySensorEntityDescription, ...] = (
+    IFBWasherBinarySensorEntityDescription(
+        key="running",
+        translation_key="running",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        is_on_fn=lambda state: state.is_running,
+    ),
+    IFBWasherBinarySensorEntityDescription(
+        key="door_locked",
+        translation_key="door_locked",
+        device_class=BinarySensorDeviceClass.LOCK,
+        # DeviceClass.LOCK: False means locked (secure), True means unlocked
+        is_on_fn=lambda state: not state.door_locked,
+    ),
+    IFBWasherBinarySensorEntityDescription(
+        key="child_lock",
+        translation_key="child_lock",
+        icon="mdi:account-lock",
+        is_on_fn=lambda state: state.child_lock,
+    ),
+)
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up IFB Washer binary sensors based on a config entry."""
+    coordinator: IFBWasherCoordinator = hass.data[DOMAIN][entry.entry_id]
+    async_add_entities(
+        IFBWasherBinarySensor(coordinator, description)
+        for description in BINARY_SENSOR_TYPES
+    )
+
+
+class IFBWasherBinarySensor(
+    CoordinatorEntity[IFBWasherCoordinator], BinarySensorEntity
+):
+    """Representation of an IFB Washer binary sensor."""
+
+    entity_description: IFBWasherBinarySensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: IFBWasherCoordinator,
+        description: IFBWasherBinarySensorEntityDescription,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.client.host}_{description.key}"
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if the binary sensor is on."""
+        if self.coordinator.data is None:
+            return None
+        return self.entity_description.is_on_fn(self.coordinator.data)
