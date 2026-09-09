@@ -97,10 +97,11 @@ STATE_LABELS: dict[int, str] = {
 }
 
 # Door States
-DOOR_STATE_CLOSED_OR_LOCKED = 1
+DOOR_STATE_UNLOCKED = 1
 DOOR_STATE_LOCKED = 2
 DOOR_STATE_LOCKING = 3
 DOOR_STATE_UNLOCKING = 4
+DOOR_STATE_CLOSED_OR_LOCKED = DOOR_STATE_UNLOCKED
 
 
 class ApplianceFamily(str, Enum):
@@ -270,13 +271,39 @@ TELEMETRY_SIGNATURES: tuple[ProgramSignature, ...] = (
     ProgramSignature("Wash + Dry 4Hr", 240, 40, 1200, True),
 )
 
-# Common Telemetry Fault Codes
+# Common Telemetry Fault Codes (from official IFB manufacturer catalog)
 ERROR_CODES: dict[int, tuple[str, str]] = {
     0: ("", "No Error"),
-    1: ("door", "Door Open / Not Latched"),
-    2: ("tAP", "Water Tap Closed / Low Pressure"),
-    3: ("drn", "Drain Blocked / Pump Issue"),
-    4: ("unb", "Unbalanced Load"),
+    1: ("door", "Door Error"),
+    2: ("prs", "Pressure Switch Failure"),
+    3: ("oht", "Over Heat"),
+    4: ("ofl", "Water Overflow"),
+    5: ("mot", "Motor Failure"),
+    6: ("hot", "Hot (High Drum Temp)"),
+    7: ("tri", "Triac Short"),
+    8: ("unb", "Unbalance Error"),
+    9: ("hvt", "High Voltage"),
+    10: ("lvt", "Low Voltage"),
+    11: ("drn", "Drain Pump Failure"),
+    12: ("tsn", "Temperature Sensor Error"),
+    13: ("htr", "Heating Error"),
+    14: ("tAP", "No Water / Low Water Pressure"),
+    15: ("tAP", "No Water / Low Water Pressure"),
+    16: ("dht", "Clothes Not Drying - Dryer Heater Fault"),
+    17: ("wfi", "Wi-Fi Communication Error"),
+    18: ("pwr", "Power Board Communication Error"),
+    19: ("ipm", "IPM Overheat"),
+    20: ("moc", "Motor Over Current"),
+    21: ("dfn", "Dryer Fan Fault"),
+    22: ("dsn", "Clothes Not Drying - Dryer Sensor Fault"),
+    23: ("bkr", "Blocked Rotor"),
+    24: ("unk", "Unknown Error"),
+    25: ("sft", "Softener Low"),
+    26: ("dtg", "Detergent Low"),
+    27: ("ddt", "DD Tray Not Closed"),
+    28: ("ad1", "Detergent Dispensing Pump Error (AD1)"),
+    29: ("ad2", "Softener Dispensing Pump Error (AD2)"),
+    30: ("dsf", "Clothes Not Drying - Drying Sensor Fault"),
 }
 
 # Spin Speed Options (Option ID 5)
@@ -308,13 +335,14 @@ TEMPERATURE_OPTIONS: dict[int, str] = {
     4: "40°C",
     5: "60°C",
     6: "95°C",
+    7: "20°C",
     8: "40°C Eco",
     9: "60°C Eco",
 }
 
 TEMPERATURE_CELSIUS_TO_CODE: dict[int, int] = {
     0: 2,
-    20: 2,
+    20: 7,
     30: 3,
     40: 4,
     60: 5,

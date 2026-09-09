@@ -75,13 +75,13 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         value_fn=lambda coord: coord.data.motor_rpm if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
-        key="water_temperature",
-        translation_key="water_temperature",
+        key="tub_temperature",
+        translation_key="tub_temperature",
         icon="mdi:thermometer",
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda coord: coord.data.water_temperature_c if coord.data else None,
+        value_fn=lambda coord: coord.data.tub_temperature_c if coord.data else None,
     ),
     IFBWasherSensorEntityDescription(
         key="spin_speed_setting",

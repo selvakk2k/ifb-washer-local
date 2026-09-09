@@ -19,6 +19,8 @@ def create_mock_state(
     has_problem: bool = False,
     error_code: str = "",
     error_description: str = "",
+    is_complete: bool = False,
+    cycle_progress: float = 0.0,
 ) -> WasherState:
     """Helper to construct a mock WasherState."""
     state = MagicMock(spec=WasherState)
@@ -27,6 +29,8 @@ def create_mock_state(
     state.has_problem = has_problem
     state.error_code = error_code
     state.error_description = error_description
+    state.is_complete = is_complete
+    state.cycle_progress = cycle_progress
     return state
 
 

@@ -138,10 +138,19 @@ class WasherState:
     temperature_code: int
     temperature_name: str
     motor_rpm: int
-    water_temperature_c: int
+    tub_temperature_c: int
     raw_hex: str
+    door_state_code: int = 1
+    total_program_minutes: int = 0
+    cycle_progress: float = 0.0
+    tub_clean_required: bool = False
     error_code: str = ""
     error_description: str = ""
+
+    @property
+    def water_temperature_c(self) -> int:
+        """Alias for tub_temperature_c for backwards compatibility."""
+        return self.tub_temperature_c
 
     @property
     def is_running(self) -> bool:
@@ -210,6 +219,96 @@ def detect_program_from_telemetry(
     return None
 
 
+
+def decode_alarms(
+    alarm1: int = 0,
+    alarm2: int = 0,
+    alarm3: int = 0,
+    alarm4: int = 0,
+) -> tuple[str, str]:
+    """Decode alarm registers into error code and description matching the official IFB app.
+
+    Bitmask definitions from WasherOptionActivity.java and l1.java:
+    - alarm1 (byte 26): door (bit 0/7), triac (bit 1), motor (bit 3), overflow (bit 4),
+      overheat (bit 5), pressure switch (bit 6).
+    - alarm2 (byte 27): tap/no water (bit 0/1), heating (bit 2), temp sensor (bit 3),
+      drain pump (bit 4), low voltage (bit 5), high voltage (bit 6), unbalance (bit 7).
+    - alarm3 (byte 24): blocked rotor (bit 0), dryer sensor (bit 1), dryer fan (bit 2),
+      motor overcurrent (bit 3), ipm overheat (bit 4), power board comms (bit 5),
+      hot (bit 6), dryer heater (bit 7).
+    - alarm4 (byte 41): drying sensor fault (bit 0).
+    """
+    # alarm1 (v.a.a in official app)
+    if alarm1 != 0:
+        if alarm1 & 1 or alarm1 & 128:
+            return ERROR_CODES.get(1, ("door", "Door Error"))
+        if alarm1 & 2:
+            return ERROR_CODES.get(7, ("tri", "Triac Short"))
+        if alarm1 & 8:
+            return ERROR_CODES.get(5, ("mot", "Motor Failure"))
+        if alarm1 & 16:
+            return ERROR_CODES.get(4, ("ofl", "Water Overflow"))
+        if alarm1 & 32:
+            return ERROR_CODES.get(3, ("oht", "Over Heat"))
+        if alarm1 & 64:
+            return ERROR_CODES.get(2, ("prs", "Pressure Switch Failure"))
+        if alarm1 in ERROR_CODES:
+            return ERROR_CODES[alarm1]
+        return ERROR_CODES.get(24, ("unk", "Unknown Error"))
+
+    # alarm2 (v.b.a in official app)
+    if alarm2 != 0:
+        if alarm2 & 1 or alarm2 & 2:
+            return ERROR_CODES.get(14, ("tAP", "No Water / Low Water Pressure"))
+        if alarm2 & 4:
+            return ERROR_CODES.get(13, ("htr", "Heating Error"))
+        if alarm2 & 8:
+            return ERROR_CODES.get(12, ("tsn", "Temperature Sensor Error"))
+        if alarm2 & 16:
+            return ERROR_CODES.get(11, ("drn", "Drain Pump Failure"))
+        if alarm2 & 32:
+            return ERROR_CODES.get(10, ("lvt", "Low Voltage"))
+        if alarm2 & 64:
+            return ERROR_CODES.get(9, ("hvt", "High Voltage"))
+        if alarm2 & 128:
+            return ERROR_CODES.get(8, ("unb", "Unbalance Error"))
+        if alarm2 in ERROR_CODES:
+            return ERROR_CODES[alarm2]
+        return ERROR_CODES.get(24, ("unk", "Unknown Error"))
+
+    # alarm3 (v.c.a in official app)
+    if alarm3 != 0:
+        if alarm3 & 1:
+            return ERROR_CODES.get(23, ("bkr", "Blocked Rotor"))
+        if alarm3 & 2:
+            return ERROR_CODES.get(22, ("dsn", "Clothes Not Drying - Dryer Sensor Fault"))
+        if alarm3 & 4:
+            return ERROR_CODES.get(21, ("dfn", "Dryer Fan Fault"))
+        if alarm3 & 8:
+            return ERROR_CODES.get(20, ("moc", "Motor Over Current"))
+        if alarm3 & 16:
+            return ERROR_CODES.get(19, ("ipm", "IPM Overheat"))
+        if alarm3 & 32:
+            return ERROR_CODES.get(18, ("pwr", "Power Board Communication Error"))
+        if alarm3 & 64:
+            return ERROR_CODES.get(6, ("hot", "Hot (High Drum Temp)"))
+        if alarm3 & 128:
+            return ERROR_CODES.get(16, ("dht", "Clothes Not Drying - Dryer Heater Fault"))
+        if alarm3 in ERROR_CODES:
+            return ERROR_CODES[alarm3]
+        return ERROR_CODES.get(24, ("unk", "Unknown Error"))
+
+    # alarm4 (v.d.a in official app)
+    if alarm4 != 0:
+        if alarm4 & 1:
+            return ERROR_CODES.get(30, ("dsf", "Clothes Not Drying - Drying Sensor Fault"))
+        if alarm4 in ERROR_CODES:
+            return ERROR_CODES[alarm4]
+        return ERROR_CODES.get(24, ("unk", "Unknown Error"))
+
+    return ("", "No Error")
+
+
 def parse_status_frame(
     data: bytes,
     program_map: dict[int, str] | None = None,
@@ -244,23 +343,38 @@ def parse_status_frame(
     rem_total = (rem_h * 60) + rem_m
 
     motor_rpm = (data[19] << 8) | data[20]
-    water_temp = data[21]
+    tub_temp = data[21]
 
     state_code = data[30]
     state_name = STATE_LABELS.get(state_code, f"State {state_code}")
 
-    door_raw = data[31]
-    door_locked = door_raw in (DOOR_STATE_CLOSED_OR_LOCKED, DOOR_STATE_LOCKED)
+    door_raw = data[35] if len(data) > 35 else data[31]
+    door_locked = (door_raw == DOOR_STATE_LOCKED)
 
-    # Fault / Problem Detection
+    total_prog_h = data[32] if len(data) > 32 else 0
+    total_prog_m = data[33] if len(data) > 33 else 0
+    total_program_minutes = (total_prog_h * 60) + total_prog_m
+
+    if total_program_minutes > 0 and total_program_minutes >= rem_total:
+        cycle_progress = round(((total_program_minutes - rem_total) * 100.0) / total_program_minutes, 1)
+    elif rem_total == 0 and state_code == MachineState.COMPLETE:
+        cycle_progress = 100.0
+    else:
+        cycle_progress = 0.0
+
+    tub_clean_required = bool(state_code == MachineState.COMPLETE and ((data[7] >> 7) & 1) == 1)
+
+    # Fault / Problem Detection from dedicated alarm registers:
+    # data[24] = alarm3, data[26] = alarm1, data[27] = alarm2, data[41] = alarm4
+    # (Note: data[25] is drum unbalance measurement, NOT an error flag. Unbalance error is alarm2 bit 7).
     error_code = ""
     error_desc = ""
-    if len(data) >= 34:
-        for candidate_idx in (32, 29):
-            candidate_val = data[candidate_idx]
-            if candidate_val in ERROR_CODES and candidate_val != 0:
-                error_code, error_desc = ERROR_CODES[candidate_val]
-                break
+    if len(data) >= 28:
+        a1 = data[26]
+        a2 = data[27]
+        a3 = data[24]
+        a4 = data[41] if len(data) > 41 else 0
+        error_code, error_desc = decode_alarms(a1, a2, a3, a4)
 
     # If actively running but door is unlatched, register door fault
     if not error_code and not door_locked:
@@ -286,8 +400,12 @@ def parse_status_frame(
         temperature_code=temp_opt,
         temperature_name=temp_name,
         motor_rpm=motor_rpm,
-        water_temperature_c=water_temp,
+        tub_temperature_c=tub_temp,
         raw_hex=data.hex(),
+        door_state_code=door_raw,
+        total_program_minutes=total_program_minutes,
+        cycle_progress=cycle_progress,
+        tub_clean_required=tub_clean_required,
         error_code=error_code,
         error_description=error_desc,
     )

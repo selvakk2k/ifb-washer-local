@@ -86,11 +86,14 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
     @property
     def cycle_progress(self) -> float | None:
         """Return the estimated completion percentage (0-100) of the current cycle."""
-        if (
-            not self.data
-            or not self.data.is_running
-            or self._initial_cycle_duration <= 0
-        ):
+        if not self.data:
+            return None
+        prog = getattr(self.data, "cycle_progress", 0.0)
+        if isinstance(prog, (int, float)) and prog > 0.0:
+            return float(prog)
+        if getattr(self.data, "is_complete", False):
+            return 100.0
+        if not self.data.is_running or self._initial_cycle_duration <= 0:
             return None
         completed = self._initial_cycle_duration - self.data.remaining_minutes
         pct = (completed / self._initial_cycle_duration) * 100.0

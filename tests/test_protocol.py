@@ -63,7 +63,7 @@ def test_parse_real_mix_daily_telemetry():
     assert state.state_code == MachineState.STANDBY
     assert state.is_standby is True
     assert state.is_running is False
-    assert state.door_locked is True
+    assert state.door_locked is False
     assert state.child_lock is False
 
 
@@ -146,9 +146,9 @@ def test_signature_auto_detection():
 
 def test_error_fault_parsing():
     """Verify decoding of problem conditions in telemetry frame."""
-    # Base packet with Tap error code (2) injected at byte 32
+    # Base packet with Tap error injected at alarm2 register (byte 27, bit 1: 0x02)
     raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
-    raw[32] = 2  # tAP error
+    raw[27] = 2  # tAP error in alarm2 register
     c1, c2 = compute_checksums(raw[:-2])
     raw[-2] = c1
     raw[-1] = c2
@@ -156,7 +156,21 @@ def test_error_fault_parsing():
     state = parse_status_frame(bytes(raw))
     assert state.has_problem is True
     assert state.error_code == "tAP"
-    assert "Tap" in state.error_description
+    assert "Water" in state.error_description
+
+
+def test_unbalance_alarm_parsing():
+    """Verify unbalance error from alarm2 bit 7 (0x80 = 128)."""
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    raw[27] = 128  # alarm2 bit 7: unbalance
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2] = c1
+    raw[-1] = c2
+
+    state = parse_status_frame(bytes(raw))
+    assert state.has_problem is True
+    assert state.error_code == "unb"
+    assert "Unbalance" in state.error_description
 
 
 def test_parse_status_frame_custom_map():
@@ -175,3 +189,48 @@ def test_checksum_large_sum_power_steam():
     c1, c2 = compute_checksums(dummy)
     assert c1 == 252
     assert c2 == 248  # (252 * 2) & 0xFF == 248 (previously miscalculated as 15)
+
+
+def test_door_states_unlocked_and_locked():
+    """Verify byte 35 door state parsing (1=unlocked, 2=locked)."""
+    # Base packet with byte 35 = 1 (unlocked)
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    raw[35] = 1
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    state = parse_status_frame(bytes(raw))
+    assert state.door_locked is False
+    assert state.door_state_code == 1
+
+    # Byte 35 = 2 (locked)
+    raw[35] = 2
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    state = parse_status_frame(bytes(raw))
+    assert state.door_locked is True
+    assert state.door_state_code == 2
+
+
+def test_tub_temperature_and_progress_calculation():
+    """Verify tub temperature (byte 21) and progress calculation from program time (bytes 32-33)."""
+    raw = bytearray.fromhex("6324810001070d01060007200000000000001a0032210000002600000000080201040002efde")
+    # In this packet:
+    # byte 10 = 0x07 (20°C)
+    # byte 17-18 = 0, 26 (rem=26m)
+    # byte 21 = 0x21 (tub temp 33°C)
+    # byte 30 = 0x08 (First Rinse)
+    # byte 32-33 = 1, 4 (total=64m)
+    # byte 35 = 2 (door locked)
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    state = parse_status_frame(bytes(raw))
+
+    assert state.temperature_name == "20°C"
+    assert state.tub_temperature_c == 33
+    assert state.water_temperature_c == 33  # Backwards compatibility alias
+    assert state.total_program_minutes == 64
+    assert state.remaining_minutes == 26
+    # (64 - 26) * 100 / 64 = 3800 / 64 = 59.4%
+    assert state.cycle_progress == 59.4
+    assert state.door_locked is True
+    assert state.has_problem is False
