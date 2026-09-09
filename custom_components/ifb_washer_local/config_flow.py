@@ -392,8 +392,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 else:
                     await self._client.select_program(
                         test_code,
-                        spin_speed_code=curr_state.spin_speed_code,
-                        temperature_code=curr_state.temperature_code,
+                        spin_code=curr_state.spin_speed_code,
+                        temp_code=curr_state.temperature_code,
                     )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 1 verification probe exception: %s", err)
@@ -410,7 +410,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_verify_phase2(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 4c: Opposite-side verification test."""
+        """Opposite-side verification test."""
         prog_map = FAMILY_PROGRAM_MATRICES.get(
             self._family, PROGRAM_CODES_WASHER_DRYER
         )
@@ -439,8 +439,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 else:
                     await self._client.select_program(
                         test_code,
-                        spin_speed_code=curr_state.spin_speed_code,
-                        temperature_code=curr_state.temperature_code,
+                        spin_code=curr_state.spin_speed_code,
+                        temp_code=curr_state.temperature_code,
                     )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 2 verification probe exception: %s", err)

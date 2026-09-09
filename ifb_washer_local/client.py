@@ -133,8 +133,13 @@ class IFBWasherClient:
         program_code: int,
         spin_code: int = 6,
         temp_code: int = 4,
+        **kwargs: Any,
     ) -> WasherState:
         """Select a wash program and return the updated state."""
+        if "spin_speed_code" in kwargs and kwargs["spin_speed_code"] is not None:
+            spin_code = kwargs["spin_speed_code"]
+        if "temperature_code" in kwargs and kwargs["temperature_code"] is not None:
+            temp_code = kwargs["temperature_code"]
         cmd_pkt = build_program_selection(program_code, spin_code=spin_code, temp_code=temp_code)
         await self._send_raw_command(cmd_pkt)
         # Allow MCU to settle relays and update telemetry registers (typically 0.8s - 1.2s)

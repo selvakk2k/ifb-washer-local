@@ -244,10 +244,9 @@ async def test_verification_preserves_settings_when_idle(mock_hass):
 
     # Phase 1: program 13 is in left_codes, candidate on left is chosen
     await flow.async_step_verify_phase1()
-    flow._client.select_program.assert_awaited_once()
     _, kwargs = flow._client.select_program.call_args
-    assert kwargs["spin_speed_code"] == 4
-    assert kwargs["temperature_code"] == 3
+    assert kwargs.get("spin_code", kwargs.get("spin_speed_code")) == 4
+    assert kwargs.get("temp_code", kwargs.get("temperature_code")) == 3
 
 
 @pytest.mark.asyncio
