@@ -167,6 +167,26 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
             }
         if self.entity_description.key == "program" and self.coordinator.data:
             try:
+                try:
+                    from ifb_washer_models import get_lookup
+                except ImportError:
+                    from .ifb_washer_models import get_lookup
+
+                lookup = get_lookup()
+                manual_code = getattr(self.coordinator, "manual_code", "MAN_742_E")
+                prog_name = self.coordinator.data.program_name or str(self.coordinator.data.program_code)
+                caps = lookup.get_program_capabilities(manual_code, prog_name)
+                if caps:
+                    return {
+                        "program_code": self.coordinator.data.program_code,
+                        **caps.to_dict(),
+                    }
+            except Exception:
+                pass
+
+
+            # Safe local fallback
+            try:
                 from .ifb_washer_local.const import get_program_capabilities
             except ImportError:
                 from ifb_washer_local.const import get_program_capabilities
@@ -177,4 +197,5 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
                 **caps.to_dict(),
             }
         return None
+
 

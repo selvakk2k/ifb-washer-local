@@ -1,0 +1,104 @@
+[
+  {
+    "id": 1,
+    "canonical_name": "Sports Wear",
+    "alias_name": "Fitness Wear",
+    "manual_code": "653_I (Elite MXS, Elena ZWS fascia knob)"
+  },
+  {
+    "id": 2,
+    "canonical_name": "Sports Wear",
+    "alias_name": "Fitness",
+    "manual_code": "653_I (Compact knob printing)"
+  },
+  {
+    "id": 3,
+    "canonical_name": "Anti-Allergen",
+    "alias_name": "Hygiene Plus",
+    "manual_code": "653_I, FL_622_H (Elite MXS, Senator WSS knob)"
+  },
+  {
+    "id": 4,
+    "canonical_name": "Anti-Allergen",
+    "alias_name": "Anti Allergen",
+    "manual_code": "FL_790_G (Standard space variation)"
+  },
+  {
+    "id": 5,
+    "canonical_name": "Mix / Daily",
+    "alias_name": "Mixed Soiled",
+    "manual_code": "FL_622_H, SD_FL_612_G (Senator WSS, Senorita WSS dial)"
+  },
+  {
+    "id": 6,
+    "canonical_name": "Mix / Daily",
+    "alias_name": "Mix/Daily",
+    "manual_code": "FL_790_G (Standard slash variation)"
+  },
+  {
+    "id": 7,
+    "canonical_name": "Mix / Daily",
+    "alias_name": "Daily Wash",
+    "manual_code": "TL_320_C (Top Load equivalent program)"
+  },
+  {
+    "id": 8,
+    "canonical_name": "Bulky / Bedding",
+    "alias_name": "Curtains",
+    "manual_code": "FL_622_H, SD_FL_612_G (Senator WSS, Senorita WSS dial)"
+  },
+  {
+    "id": 9,
+    "canonical_name": "Bulky / Bedding",
+    "alias_name": "Bulky",
+    "manual_code": "FL_772_B, FL_850 (Washer-Dryer dial label)"
+  },
+  {
+    "id": 10,
+    "canonical_name": "Uniform / Linen",
+    "alias_name": "Uniform",
+    "manual_code": "FL_622_H, TL_320_C (Front Load dial and Top Load ladder)"
+  },
+  {
+    "id": 11,
+    "canonical_name": "Uniform / Linen",
+    "alias_name": "Linen",
+    "manual_code": "FL_790_G (App-only cloud program slot)"
+  },
+  {
+    "id": 12,
+    "canonical_name": "Spin Dry / Rinse",
+    "alias_name": "Additives/Rinse + Spin",
+    "manual_code": "653_I (Elite MXS dial position)"
+  },
+  {
+    "id": 13,
+    "canonical_name": "Spin Dry / Rinse",
+    "alias_name": "Rinse + Spin",
+    "manual_code": "FL_622_H (Senator WSS dial position)"
+  },
+  {
+    "id": 14,
+    "canonical_name": "CradleWash",
+    "alias_name": "Cradle Wash",
+    "manual_code": "All models (Standard space variation)"
+  },
+  {
+    "id": 15,
+    "canonical_name": "CradleWash",
+    "alias_name": "Delicates",
+    "manual_code": "TL_320_C (Top Load equivalent wash mode)"
+  },
+  {
+    "id": 16,
+    "canonical_name": "Tub Clean",
+    "alias_name": "Auto Tub Clean",
+    "manual_code": "TL_320_C, TL_340_A (Top Load dedicated button label)"
+  },
+  {
+    "id": 17,
+    "canonical_name": "Tub Clean",
+    "alias_name": "Drum Clean",
+    "manual_code": "FL_772_B (Maintenance section alternate term)"
+  }
+]

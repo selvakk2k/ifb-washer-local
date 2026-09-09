@@ -1,0 +1,462 @@
+[
+  {
+    "id": 1,
+    "manual_code": "MAN_772_B",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Hold Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 2,
+    "manual_code": "MAN_772_B",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 3,
+    "manual_code": "MAN_772_C",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Hold Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 4,
+    "manual_code": "MAN_772_C",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 5,
+    "manual_code": "MAN_850_B",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Hold Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 6,
+    "manual_code": "MAN_850_B",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 7,
+    "manual_code": "MAN_790_G",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s (or My IFB App)",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 8,
+    "manual_code": "MAN_790_G",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Steam + Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 9,
+    "manual_code": "MAN_653_I",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Additives/Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 10,
+    "manual_code": "MAN_653_I",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 11,
+    "manual_code": "MAN_622_H",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 12,
+    "manual_code": "MAN_622_H",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 13,
+    "manual_code": "MAN_643_G",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 14,
+    "manual_code": "MAN_643_G",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 15,
+    "manual_code": "MAN_612_G",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 16,
+    "manual_code": "MAN_612_G",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 17,
+    "manual_code": "MAN_752_I",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 18,
+    "manual_code": "MAN_752_I",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 19,
+    "manual_code": "MAN_451_F",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Rotate to Rinse+Spin, Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 20,
+    "manual_code": "MAN_451_F",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 21,
+    "manual_code": "MAN_780_E",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Touch Stepper sequence / Hold Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 22,
+    "manual_code": "MAN_780_E",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Touch and hold Child Lock key for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 23,
+    "manual_code": "MAN_800_A",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Touch Stepper sequence / Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 24,
+    "manual_code": "MAN_800_A",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Touch and hold Child Lock key for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 25,
+    "manual_code": "MAN_810_B",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Touch Stepper sequence / Hold Temp for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 26,
+    "manual_code": "MAN_810_B",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Touch and hold Child Lock key for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 27,
+    "manual_code": "MAN_TL_320_C",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "PreClean / Tub Clean tactile button (Button 11)",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 28,
+    "manual_code": "MAN_TL_320_C",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 29,
+    "manual_code": "MAN_TL_340_A",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Dedicated Tub Clean LED position / button",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 30,
+    "manual_code": "MAN_TL_340_A",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 31,
+    "manual_code": "MAN_TL_360_UM",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Dedicated Tub Clean button / ladder",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 32,
+    "manual_code": "MAN_TL_360_UM",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 33,
+    "manual_code": "MAN_TL_013_I",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 34,
+    "manual_code": "MAN_TL_013_I",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 35,
+    "manual_code": "MAN_TL_014_G",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 36,
+    "manual_code": "MAN_TL_014_G",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 37,
+    "manual_code": "MAN_TL_080_L",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 38,
+    "manual_code": "MAN_TL_080_L",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 39,
+    "manual_code": "MAN_TL_113_I",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 40,
+    "manual_code": "MAN_TL_113_I",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 41,
+    "manual_code": "MAN_TL_145_C",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 42,
+    "manual_code": "MAN_TL_145_C",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 43,
+    "manual_code": "MAN_TL_300_D",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Tub Clean ladder selection",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 44,
+    "manual_code": "MAN_TL_300_D",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Rinse button for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  },
+  {
+    "id": 45,
+    "manual_code": "MAN_742_E",
+    "feature_name": "Tub Clean",
+    "activation_type": "Button Combo / Dial Hold",
+    "button_combo": "Hold Time Saver for 3s",
+    "hold_sec": 3,
+    "packet_code": 15,
+    "description": "Drum maintenance sterilization"
+  },
+  {
+    "id": 46,
+    "manual_code": "MAN_742_E",
+    "feature_name": "Child Lock",
+    "activation_type": "Button Hold",
+    "button_combo": "Hold Temp + Spin for 3s",
+    "hold_sec": 3,
+    "packet_code": null,
+    "description": "Disables control panel touch/buttons during run"
+  }
+]
