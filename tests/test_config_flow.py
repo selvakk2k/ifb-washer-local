@@ -65,28 +65,35 @@ async def test_config_flow_full_path(mock_hass):
         assert result3["type"] == FlowResultType.FORM
         assert result3["step_id"] == "model"
 
-        # 4. Select Model -> routes to verify_phase1 menu
+        # 4. Select Model -> routes to verify_initial menu
         result4 = await flow.async_step_model({CONF_MODEL: "WD Executive ZXS"})
         assert result4["type"] == FlowResultType.MENU
-        assert result4["step_id"] == "verify_phase1"
-        assert "verify_phase2" in result4["menu_options"]
+        assert result4["step_id"] == "verify_initial"
+        assert "verify_phase1" in result4["menu_options"]
         assert "skip_verification" in result4["menu_options"]
 
-        # 5. Phase 1 Verification button click -> routes to verify_phase2 menu
-        result5 = await flow.async_step_verify_phase2()
+        # 5. Confirm Current Program button click -> routes to verify_phase1 menu (same side test)
+        result5 = await flow.async_step_verify_phase1()
         assert result5["type"] == FlowResultType.MENU
-        assert result5["step_id"] == "verify_phase2"
-        assert "finish_verification" in result5["menu_options"]
+        assert result5["step_id"] == "verify_phase1"
+        assert "verify_phase2" in result5["menu_options"]
         assert "skip_verification" in result5["menu_options"]
 
-        # 6. Phase 2 Finish Verification button click -> creates entry
-        result6 = await flow.async_step_finish_verification()
-        assert result6["type"] == FlowResultType.CREATE_ENTRY
-        assert result6["title"] == "IFB WD Executive ZXS (192.168.0.100)"
-        assert result6["data"][CONF_HOST] == "192.168.0.100"
-        assert result6["data"][CONF_PORT] == 80
-        assert result6["data"][CONF_FAMILY] == ApplianceFamily.WASHER_DRYER
-        assert result6["data"][CONF_MODEL] == "WD Executive ZXS"
+        # 6. Same Side verification button click -> routes to verify_phase2 menu (opposite side test)
+        result6 = await flow.async_step_verify_phase2()
+        assert result6["type"] == FlowResultType.MENU
+        assert result6["step_id"] == "verify_phase2"
+        assert "finish_verification" in result6["menu_options"]
+        assert "skip_verification" in result6["menu_options"]
+
+        # 7. Opposite Side Finish Verification button click -> creates entry
+        result7 = await flow.async_step_finish_verification()
+        assert result7["type"] == FlowResultType.CREATE_ENTRY
+        assert result7["title"] == "IFB WD Executive ZXS (192.168.0.100)"
+        assert result7["data"][CONF_HOST] == "192.168.0.100"
+        assert result7["data"][CONF_PORT] == 80
+        assert result7["data"][CONF_FAMILY] == ApplianceFamily.WASHER_DRYER
+        assert result7["data"][CONF_MODEL] == "WD Executive ZXS"
 
 
 @pytest.mark.asyncio
@@ -134,5 +141,5 @@ async def test_config_flow_custom_model_text(mock_hass):
     # Submit custom model name
     result2 = await flow.async_step_custom_model_text({CONF_CUSTOM_MODEL: "Senator Smart Touch Custom"})
     assert result2["type"] == FlowResultType.MENU
-    assert result2["step_id"] == "verify_phase1"
+    assert result2["step_id"] == "verify_initial"
     assert flow._model == "Senator Smart Touch Custom"

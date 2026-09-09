@@ -165,3 +165,13 @@ def test_parse_status_frame_custom_map():
     raw = bytes.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
     state = parse_status_frame(raw, program_map=custom_map)
     assert state.program_name == "Custom Cycle"
+
+
+def test_checksum_large_sum_power_steam():
+    """Verify checksum calculation for frames where accumulation >= 249 (e.g. Power Steam s=252)."""
+    # Create dummy data whose signed sum equals 252
+    # 252 can be represented by two 126 bytes
+    dummy = bytes([126, 126])
+    c1, c2 = compute_checksums(dummy)
+    assert c1 == 252
+    assert c2 == 248  # (252 * 2) & 0xFF == 248 (previously miscalculated as 15)

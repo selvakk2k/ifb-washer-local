@@ -15,7 +15,7 @@
       },
       "machine_type": {
         "title": "Select Device Type",
-        "description": "Select your IFB washing machine type to load the matching program dial matrix:",
+        "description": "Select your IFB washing machine type:",
         "data": {
           "family": "Device Type"
         },
@@ -25,7 +25,7 @@
       },
       "model": {
         "title": "Select Model",
-        "description": "Select your {type_name} model from the catalog, or choose Custom Model:",
+        "description": "Select your {type_name} model series from the list, or choose Custom Model:",
         "data": {
           "model": "Model Series"
         },
@@ -40,17 +40,25 @@
           "custom_model": "Model Name"
         }
       },
+      "verify_initial": {
+        "title": "Step 1: Confirm Current Program",
+        "description": "Your machine is currently reporting **{active_name}** (Code {active_code}).\n\nDoes your machine's screen or indicator show **{active_name}**?",
+        "menu_options": {
+          "verify_phase1": "Confirm Current Program",
+          "skip_verification": "Skip Verification"
+        }
+      },
       "verify_phase1": {
-        "title": "Step 1: Dial Verification",
-        "description": "Your machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the dial.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "title": "Step 2: Same-Side Test",
+        "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the same program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
           "verify_phase2": "Display Matches (Next Test)",
           "skip_verification": "Skip Verification"
         }
       },
       "verify_phase2": {
-        "title": "Step 2: Dial Verification",
-        "description": "Now testing the opposite side of the dial to verify the full program matrix.\n\nHome Assistant sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "title": "Step 3: Opposite-Side Test",
+        "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the opposite program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
           "finish_verification": "Display Matches (Finish Setup)",
           "skip_verification": "Skip Verification"

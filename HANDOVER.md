@@ -48,7 +48,7 @@ The two trailing bytes are computed using signed-byte accumulation across all pr
 def compute_checksums(data: bytes | list[int]) -> tuple[int, int]:
     s = sum(b if b < 128 else b - 256 for b in data) & 0xFFFF
     chk1 = s & 0xFF
-    chk2 = (s * 2) & 0xFF if s < 249 else int(f"{s:02x}"[-2], 16)
+    chk2 = (s * 2) & 0xFF
     return chk1, chk2
 ```
 

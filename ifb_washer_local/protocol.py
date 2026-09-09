@@ -40,11 +40,7 @@ def compute_checksums(data: bytes | list[int]) -> tuple[int, int]:
         s += signed_b
     s = s & 0xFFFF
     chk1 = s & 0xFF
-    if s < 249:
-        chk2 = (s * 2) & 0xFF
-    else:
-        hex_str = f"{s:02x}"
-        chk2 = int(hex_str[-2], 16)
+    chk2 = (s * 2) & 0xFF
     return chk1, chk2
 
 

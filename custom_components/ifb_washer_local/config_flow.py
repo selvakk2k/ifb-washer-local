@@ -175,7 +175,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             if chosen == "custom":
                 return await self.async_step_custom_model_text()
             self._model = chosen
-            return await self.async_step_verify_phase1()
+            return await self.async_step_verify_initial()
 
         default_model = model_list[0] if model_list else "custom"
         schema = vol.Schema(
@@ -205,7 +205,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             custom_name = user_input.get(CONF_CUSTOM_MODEL, "").strip()
             self._model = custom_name or "Custom IFB Model"
             self._custom_model = custom_name
-            return await self.async_step_verify_phase1()
+            return await self.async_step_verify_initial()
 
         schema = vol.Schema(
             {
@@ -222,10 +222,33 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=schema,
         )
 
+    async def async_step_verify_initial(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 4a: Confirm current program reported by the appliance."""
+        prog_map = FAMILY_PROGRAM_MATRICES.get(
+            self._family, PROGRAM_CODES_WASHER_DRYER
+        )
+        curr_code = (
+            self._initial_state.program_code
+            if self._initial_state and self._initial_state.program_code in prog_map
+            else list(prog_map.keys())[0]
+        )
+        curr_name = prog_map.get(curr_code, f"Program {curr_code}")
+
+        return self.async_show_menu(
+            step_id="verify_initial",
+            menu_options=["verify_phase1", "skip_verification"],
+            description_placeholders={
+                "active_name": curr_name,
+                "active_code": str(curr_code),
+            },
+        )
+
     async def async_step_verify_phase1(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 4a: Same-side verification test."""
+        """Step 4b: Same-side verification test."""
         prog_map = FAMILY_PROGRAM_MATRICES.get(
             self._family, PROGRAM_CODES_WASHER_DRYER
         )
@@ -238,7 +261,6 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             if self._initial_state and self._initial_state.program_code in prog_map
             else list(prog_map.keys())[0]
         )
-        curr_name = prog_map.get(curr_code, f"Program {curr_code}")
 
         # Determine which side the current program is on, and pick another on the SAME side
         if curr_code in left_codes:
@@ -253,33 +275,26 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._phase1_code = test_code
         target_name = prog_map.get(test_code, f"Program {test_code}")
 
-        # Probe physical machine: send wake query first, pause 500ms, then select test program
+        # Probe physical machine with same-side program
         try:
             if self._client:
-                await self._client.get_state()
-                await asyncio.sleep(0.5)
                 await self._client.select_program(test_code)
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 1 verification probe exception: %s", err)
-
-        is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
 
         return self.async_show_menu(
             step_id="verify_phase1",
             menu_options=["verify_phase2", "skip_verification"],
             description_placeholders={
-                "active_name": curr_name,
-                "active_code": str(curr_code),
                 "target_name": target_name,
                 "target_code": str(test_code),
-                "side_name": "same side" if not is_top_load else "primary group",
             },
         )
 
     async def async_step_verify_phase2(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 4b: Opposite-side verification test."""
+        """Step 4c: Opposite-side verification test."""
         prog_map = FAMILY_PROGRAM_MATRICES.get(
             self._family, PROGRAM_CODES_WASHER_DRYER
         )
@@ -290,10 +305,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         # Pick from the OPPOSITE side of Phase 1
         if self._phase1_side == "left":
             candidates = [c for c in right_codes if c in prog_map]
-            opp_side_name = "right side (opposite side)"
         else:
             candidates = [c for c in left_codes if c in prog_map]
-            opp_side_name = "left side (opposite side)"
 
         test_code = candidates[0] if candidates else list(prog_map.keys())[-1]
         target_name = prog_map.get(test_code, f"Program {test_code}")
@@ -305,15 +318,12 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 2 verification probe exception: %s", err)
 
-        is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
-
         return self.async_show_menu(
             step_id="verify_phase2",
             menu_options=["finish_verification", "skip_verification"],
             description_placeholders={
                 "target_name": target_name,
                 "target_code": str(test_code),
-                "side_name": opp_side_name if not is_top_load else "opposite group",
             },
         )
 
