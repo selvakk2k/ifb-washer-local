@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ifb_washer_local.const import (
-    DELAY_START_NAME_TO_HOURS,
+    DELAY_START_NAME_TO_CODE,
     DELAY_START_OPTIONS,
     SPIN_SPEED_OPTIONS,
     TEMPERATURE_OPTIONS,
@@ -179,15 +179,17 @@ class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
         total_mins = getattr(self.coordinator.data, "delay_start_minutes", 0)
         if total_mins <= 0:
             return "No Delay"
+        if total_mins <= 30:
+            return "30 Minutes"
         hours = round(total_mins / 60)
-        return DELAY_START_OPTIONS.get(hours, f"{hours} Hours")
+        return DELAY_START_OPTIONS.get(hours * 2, f"{hours} Hours")
 
     async def async_select_option(self, option: str) -> None:
         """Change the delay start duration."""
-        hours = DELAY_START_NAME_TO_HOURS.get(option)
-        if hours is None:
+        code = DELAY_START_NAME_TO_CODE.get(option)
+        if code is None:
             _LOGGER.warning("Unknown delay start option selected: %s", option)
             return
 
-        updated_state = await self.coordinator.client.set_delay_start(hours)
+        updated_state = await self.coordinator.client.set_delay_start(code)
         self.coordinator.async_set_updated_data(updated_state)

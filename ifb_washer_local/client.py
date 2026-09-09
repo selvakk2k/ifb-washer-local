@@ -150,14 +150,14 @@ class IFBWasherClient:
                 return state
         return state
 
-    async def set_delay_start(self, hours: int) -> WasherState:
-        """Set the delay start time in hours (0 for No Delay, 1-24)."""
-        cmd_pkt = build_user_option_command(HIL_OPTION_DELAY, hours)
+    async def set_delay_start(self, delay_code: int) -> WasherState:
+        """Set the delay start option code (0 for No Delay, 1 for 30m, 2 for 1h, 4 for 2h ...)."""
+        cmd_pkt = build_user_option_command(HIL_OPTION_DELAY, delay_code)
         await self._send_raw_command(cmd_pkt)
+        expected_mins = 0 if delay_code == 0 else (30 if delay_code == 1 else (delay_code // 2) * 60)
         for _ in range(4):
             await asyncio.sleep(0.3)
             state = await self.get_state()
-            expected_mins = hours * 60
             if abs(state.delay_start_minutes - expected_mins) <= 2:
                 return state
         return state

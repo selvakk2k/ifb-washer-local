@@ -258,4 +258,58 @@ def test_time_remaining_and_program_duration_sensors():
     assert prog_dur_sensor.native_value == 72
 
 
+async def test_delay_start_options_and_select():
+    """Verify delay start selector options and command code mapping."""
+    from unittest.mock import AsyncMock
+    from custom_components.ifb_washer_local.select import IFBWasherDelayStartSelect
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    updated_state = create_mock_state()
+    updated_state.delay_start_minutes = 120
+    client.set_delay_start = AsyncMock(return_value=updated_state)
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_set_updated_data = MagicMock()
+
+    select = IFBWasherDelayStartSelect(coord)
+    assert "No Delay" in select.options
+    assert "30 Minutes" in select.options
+    assert "1 Hour" in select.options
+    assert "2 Hours" in select.options
+    assert "19 Hours" in select.options
+    assert "20 Hours" not in select.options
+
+    # 1. 0 minutes -> No Delay
+    state = create_mock_state()
+    state.delay_start_minutes = 0
+    coord.data = state
+    assert select.current_option == "No Delay"
+
+    # 2. 30 minutes -> 30 Minutes
+    state.delay_start_minutes = 30
+    assert select.current_option == "30 Minutes"
+
+    # 3. 120 minutes -> 2 Hours
+    state.delay_start_minutes = 120
+    assert select.current_option == "2 Hours"
+
+    # 4. Selecting "2 Hours" sends hardware code 4
+    await select.async_select_option("2 Hours")
+    client.set_delay_start.assert_awaited_once_with(4)
+    coord.async_set_updated_data.assert_called_once_with(updated_state)
+
+    # 5. Selecting "30 Minutes" sends hardware code 1
+    client.set_delay_start.reset_mock()
+    await select.async_select_option("30 Minutes")
+    client.set_delay_start.assert_awaited_once_with(1)
+
+    # 6. Selecting "No Delay" sends hardware code 0
+    client.set_delay_start.reset_mock()
+    await select.async_select_option("No Delay")
+    client.set_delay_start.assert_awaited_once_with(0)
+
+
+
 
