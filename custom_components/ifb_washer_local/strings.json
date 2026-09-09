@@ -15,12 +15,8 @@
       },
       "machine_type": {
         "title": "Select Device Type",
-        "description": "Select your IFB washing machine type:",
         "data": {
           "family": "Device Type"
-        },
-        "data_description": {
-          "family": "Choose Washer Dryer Refresher (with steam/dry), Front Load Washer, or Top Load Washer."
         }
       },
       "model": {
