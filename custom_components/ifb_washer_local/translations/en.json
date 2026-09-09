@@ -103,6 +103,9 @@
       "time_remaining": {
         "name": "Time Remaining"
       },
+      "program_duration": {
+        "name": "Program Duration"
+      },
       "estimated_end_time": {
         "name": "Estimated Completion Time"
       },

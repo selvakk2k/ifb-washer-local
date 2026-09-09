@@ -57,6 +57,7 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
     ),
     IFBWasherSensorEntityDescription(
         key="program_duration",
+        name="Program Duration",
         translation_key="program_duration",
         icon="mdi:clock-outline",
         native_unit_of_measurement=UnitOfTime.MINUTES,
