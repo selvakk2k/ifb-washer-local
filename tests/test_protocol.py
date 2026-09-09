@@ -108,22 +108,27 @@ def test_program_selection_packet():
 
 
 def test_verified_programs_mapping():
-    """Verify the hardware-verified dial program codes including hidden cycles."""
+    """Verify the hardware-verified dial program codes for the washer-dryer family.
+
+    Codes 16 and 17 (Spin Dry / Drain, Rinse + Spin) were confirmed rejected by
+    the physical WD Executive ZXS MCU firmware during live probe on 2026-09-09.
+    WASHER_DRYER is therefore bounded strictly to codes 1–15.
+    """
     from ifb_washer_local.const import (
         PROGRAM_CODES_742,
         PROGRAM_CODES_WASHER_DRYER,
     )
 
     assert PROGRAM_CODES_WASHER_DRYER == PROGRAM_CODES_742
-    assert len(PROGRAM_CODES_WASHER_DRYER) == 17
+    assert len(PROGRAM_CODES_WASHER_DRYER) == 15
     assert PROGRAM_CODES_WASHER_DRYER[1] == "Wash + Dry 2Hr"
     assert PROGRAM_CODES_WASHER_DRYER[2] == "Wash + Dry 4Hr"
     assert PROGRAM_CODES_WASHER_DRYER[12] == "Cotton"
     assert PROGRAM_CODES_WASHER_DRYER[13] == "Mix / Daily"
     assert PROGRAM_CODES_WASHER_DRYER[14] == "Express 15'"
     assert PROGRAM_CODES_WASHER_DRYER[15] == "Tub Clean"
-    assert PROGRAM_CODES_WASHER_DRYER[16] == "Spin Dry / Drain"
-    assert PROGRAM_CODES_WASHER_DRYER[17] == "Rinse + Spin"
+    assert 16 not in PROGRAM_CODES_WASHER_DRYER, "Code 16 rejected by WD MCU firmware"
+    assert 17 not in PROGRAM_CODES_WASHER_DRYER, "Code 17 rejected by WD MCU firmware"
 
 
 def test_family_program_matrices():

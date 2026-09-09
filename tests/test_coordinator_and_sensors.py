@@ -410,7 +410,13 @@ async def test_entity_exception_translation():
     """Verify entity platforms translate IFBError to HomeAssistantError."""
     import pytest
     from homeassistant.exceptions import HomeAssistantError
-    from ifb_washer_local.exceptions import IFBConnectionError, IFBTimeoutError, IFBError
+    # Import from the vendored path — the component uses local-first imports so the
+    # exception class identity must match what the except clauses actually catch.
+    from custom_components.ifb_washer_local.ifb_washer_local.exceptions import (
+        IFBConnectionError,
+        IFBTimeoutError,
+        IFBError,
+    )
     from custom_components.ifb_washer_local.button import BUTTON_TYPES, IFBWasherButton
     from custom_components.ifb_washer_local.switch import IFBWasherPowerSwitch, IFBWasherChildLockSwitch
     from custom_components.ifb_washer_local.select import IFBWasherProgramSelect
@@ -477,7 +483,8 @@ async def test_extra_rinse_and_dry_mode_select_entities():
         IFBWasherExtraRinseSelect,
     )
     from homeassistant.exceptions import HomeAssistantError
-    from ifb_washer_local import IFBTimeoutError
+    # Vendored path to match the class identity the component catches.
+    from custom_components.ifb_washer_local.ifb_washer_local.exceptions import IFBTimeoutError
 
     hass = MagicMock(spec=HomeAssistant)
     client = MagicMock()
@@ -487,6 +494,9 @@ async def test_extra_rinse_and_dry_mode_select_entities():
     state.extra_rinse_name = "+1 Rinse"
     state.dry_mode_code = 2
     state.dry_mode_name = "Iron Dry"
+    # program_code is required by IFBWasherDryModeSelect.options for capability gating.
+    # Mix / Daily (13) supports Cupboard Dry.
+    state.program_code = 13
     client.set_extra_rinse = AsyncMock(return_value=state)
     client.set_dry_mode = AsyncMock(return_value=state)
 
@@ -523,7 +533,8 @@ async def test_feature_switch_entities():
         IFBWasherFeatureSwitch,
     )
     from homeassistant.exceptions import HomeAssistantError
-    from ifb_washer_local import IFBError
+    # Vendored path to match the class identity the component catches.
+    from custom_components.ifb_washer_local.ifb_washer_local.exceptions import IFBError
 
     hass = MagicMock(spec=HomeAssistant)
     client = MagicMock()
