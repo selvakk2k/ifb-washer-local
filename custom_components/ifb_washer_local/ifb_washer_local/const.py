@@ -647,3 +647,5 @@ DEFAULT_PROGRAM_CAPABILITIES = ProgramCapabilities(
 def get_program_capabilities(program_code: int) -> ProgramCapabilities:
     """Return program option capabilities for a given program code."""
     return PROGRAM_CAPABILITIES_WASHER_DRYER.get(program_code, DEFAULT_PROGRAM_CAPABILITIES)
+
+
