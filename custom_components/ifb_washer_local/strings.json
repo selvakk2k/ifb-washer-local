@@ -42,18 +42,18 @@
       },
       "verify_phase1": {
         "title": "Step 1: Dial Verification",
-        "description": "{dial_image}\n\nYour machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the dial.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
-        "data": {
-          "verified": "The screen or LED matches this program",
-          "skip_verification": "Skip visual verification"
+        "description": "Your machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the dial.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "menu_options": {
+          "verify_phase2": "Display Matches (Next Test)",
+          "skip_verification": "Skip Verification"
         }
       },
       "verify_phase2": {
         "title": "Step 2: Dial Verification",
-        "description": "{dial_image}\n\nNow testing the opposite side of the dial to verify the full program matrix.\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
-        "data": {
-          "verified": "The screen or LED matches this program",
-          "skip_verification": "Skip visual verification"
+        "description": "Now testing the opposite side of the dial to verify the full program matrix.\n\nHome Assistant sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "menu_options": {
+          "finish_verification": "Display Matches (Finish Setup)",
+          "skip_verification": "Skip Verification"
         }
       },
       "custom": {

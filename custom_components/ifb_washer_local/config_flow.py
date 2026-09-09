@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
-import os
-import time
-from typing import Any, Sequence
+from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -43,7 +42,6 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_STANDBY,
     DOMAIN,
 )
-from .dial_animation import generate_animated_dial_gif
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,10 +57,6 @@ MACHINE_TYPE_OPTIONS = [
     selector.SelectOptionDict(
         value=ApplianceFamily.TOP_LOAD_SMART,
         label="Top Load Washer",
-    ),
-    selector.SelectOptionDict(
-        value=ApplianceFamily.CUSTOM,
-        label="Custom / Manual Dial Matrix",
     ),
 ]
 
@@ -142,10 +136,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Step 2: Choose machine category using IFB official terminology."""
         if user_input is not None:
-            choice = user_input[CONF_FAMILY]
-            self._family = choice
-            if choice == ApplianceFamily.CUSTOM:
-                return await self.async_step_custom()
+            self._family = user_input[CONF_FAMILY]
             return await self.async_step_model()
 
         schema = vol.Schema(
@@ -231,54 +222,6 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=schema,
         )
 
-    async def _async_generate_dial_image(
-        self,
-        filename: str,
-        active_name: str,
-        active_code: int,
-        target_name: str,
-        target_code: int,
-        left_items: Sequence[tuple[int, str]],
-        right_items: Sequence[tuple[int, str]],
-        is_top_load: bool,
-    ) -> str:
-        """Generate animated GIF in Home Assistant www directory and return markdown image tag."""
-        try:
-            www_dir = (
-                self.hass.config.path("www", "ifb_washer_local")
-                if hasattr(self.hass, "config") and hasattr(self.hass.config, "path")
-                else ""
-            )
-            if www_dir and isinstance(www_dir, str):
-                gif_path = os.path.join(www_dir, filename)
-                if hasattr(self.hass, "async_add_executor_job"):
-                    await self.hass.async_add_executor_job(
-                        generate_animated_dial_gif,
-                        gif_path,
-                        active_name,
-                        active_code,
-                        target_name,
-                        target_code,
-                        left_items,
-                        right_items,
-                        is_top_load,
-                    )
-                else:
-                    generate_animated_dial_gif(
-                        gif_path,
-                        active_name,
-                        active_code,
-                        target_name,
-                        target_code,
-                        left_items,
-                        right_items,
-                        is_top_load,
-                    )
-                return f"![Dial Graphic](/local/ifb_washer_local/{filename}?t={int(time.time())})"
-        except Exception as exc:  # pylint: disable=broad-except
-            _LOGGER.debug("Could not generate animated dial GIF: %s", exc)
-        return ""
-
     async def async_step_verify_phase1(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -310,47 +253,21 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._phase1_code = test_code
         target_name = prog_map.get(test_code, f"Program {test_code}")
 
-        if user_input is not None:
-            if user_input.get("skip_verification"):
-                return self._create_entry()
-            # If confirmed, proceed to Phase 2 (Opposite Side)
-            return await self.async_step_verify_phase2()
-
-        # Probe the physical machine
+        # Probe physical machine: send wake query first, pause 500ms, then select test program
         try:
             if self._client:
+                await self._client.get_state()
+                await asyncio.sleep(0.5)
                 await self._client.select_program(test_code)
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 1 verification probe exception: %s", err)
 
-        # Generate animated GIF illustration
-        left_items = [(c, prog_map[c]) for c in left_codes if c in prog_map]
-        right_items = [(c, prog_map[c]) for c in right_codes if c in prog_map]
         is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
 
-        dial_image = await self._async_generate_dial_image(
-            filename="dial_phase1.gif",
-            active_name=curr_name,
-            active_code=curr_code,
-            target_name=target_name,
-            target_code=test_code,
-            left_items=left_items,
-            right_items=right_items,
-            is_top_load=is_top_load,
-        )
-
-        schema = vol.Schema(
-            {
-                vol.Required("verified", default=True): selector.BooleanSelector(),
-                vol.Optional("skip_verification", default=False): selector.BooleanSelector(),
-            }
-        )
-
-        return self.async_show_form(
+        return self.async_show_menu(
             step_id="verify_phase1",
-            data_schema=schema,
+            menu_options=["verify_phase2", "skip_verification"],
             description_placeholders={
-                "dial_image": dial_image,
                 "active_name": curr_name,
                 "active_code": str(curr_code),
                 "target_name": target_name,
@@ -381,49 +298,36 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         test_code = candidates[0] if candidates else list(prog_map.keys())[-1]
         target_name = prog_map.get(test_code, f"Program {test_code}")
 
-        if user_input is not None:
-            return self._create_entry()
-
-        # Probe the physical machine
+        # Probe physical machine with opposite-side program
         try:
             if self._client:
                 await self._client.select_program(test_code)
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 2 verification probe exception: %s", err)
 
-        # Generate animated GIF illustration
-        left_items = [(c, prog_map[c]) for c in left_codes if c in prog_map]
-        right_items = [(c, prog_map[c]) for c in right_codes if c in prog_map]
         is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
 
-        dial_image = await self._async_generate_dial_image(
-            filename="dial_phase2.gif",
-            active_name=prog_map.get(self._phase1_code, ""),
-            active_code=self._phase1_code,
-            target_name=target_name,
-            target_code=test_code,
-            left_items=left_items,
-            right_items=right_items,
-            is_top_load=is_top_load,
-        )
-
-        schema = vol.Schema(
-            {
-                vol.Required("verified", default=True): selector.BooleanSelector(),
-                vol.Optional("skip_verification", default=False): selector.BooleanSelector(),
-            }
-        )
-
-        return self.async_show_form(
+        return self.async_show_menu(
             step_id="verify_phase2",
-            data_schema=schema,
+            menu_options=["finish_verification", "skip_verification"],
             description_placeholders={
-                "dial_image": dial_image,
                 "target_name": target_name,
                 "target_code": str(test_code),
                 "side_name": opp_side_name if not is_top_load else "opposite group",
             },
         )
+
+    async def async_step_finish_verification(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Finish verification and complete setup."""
+        return self._create_entry()
+
+    async def async_step_skip_verification(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Skip dial verification and complete setup."""
+        return self._create_entry()
 
     async def async_step_custom(
         self, user_input: dict[str, Any] | None = None

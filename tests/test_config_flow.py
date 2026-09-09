@@ -65,18 +65,22 @@ async def test_config_flow_full_path(mock_hass):
         assert result3["type"] == FlowResultType.FORM
         assert result3["step_id"] == "model"
 
-        # 4. Select Model
+        # 4. Select Model -> routes to verify_phase1 menu
         result4 = await flow.async_step_model({CONF_MODEL: "WD Executive ZXS"})
-        assert result4["type"] == FlowResultType.FORM
+        assert result4["type"] == FlowResultType.MENU
         assert result4["step_id"] == "verify_phase1"
+        assert "verify_phase2" in result4["menu_options"]
+        assert "skip_verification" in result4["menu_options"]
 
-        # 5. Phase 1 Verification (Same side)
-        result5 = await flow.async_step_verify_phase1({"verified": True})
-        assert result5["type"] == FlowResultType.FORM
+        # 5. Phase 1 Verification button click -> routes to verify_phase2 menu
+        result5 = await flow.async_step_verify_phase2()
+        assert result5["type"] == FlowResultType.MENU
         assert result5["step_id"] == "verify_phase2"
+        assert "finish_verification" in result5["menu_options"]
+        assert "skip_verification" in result5["menu_options"]
 
-        # 6. Phase 2 Verification (Opposite side)
-        result6 = await flow.async_step_verify_phase2({"verified": True})
+        # 6. Phase 2 Finish Verification button click -> creates entry
+        result6 = await flow.async_step_finish_verification()
         assert result6["type"] == FlowResultType.CREATE_ENTRY
         assert result6["title"] == "IFB WD Executive ZXS (192.168.0.100)"
         assert result6["data"][CONF_HOST] == "192.168.0.100"
@@ -86,22 +90,31 @@ async def test_config_flow_full_path(mock_hass):
 
 
 @pytest.mark.asyncio
+async def test_config_flow_skip_verification(mock_hass):
+    """Test clicking 'Skip Verification' in Phase 1 directly creates entry."""
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow._host = "192.168.0.100"
+    flow._port = 80
+    flow._family = ApplianceFamily.WASHER_DRYER
+    flow._model = "WD Executive ZXS"
+
+    result = await flow.async_step_skip_verification()
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_MODEL] == "WD Executive ZXS"
+
+
+@pytest.mark.asyncio
 async def test_config_flow_custom_selection(mock_hass):
-    """Test selecting custom family routes to custom step and creates entry."""
+    """Test custom step directly creates custom entry."""
     flow = IFBWasherConfigFlow()
     flow.hass = mock_hass
     flow._host = "192.168.0.105"
     flow._port = 80
 
-    # Select custom family
-    result = await flow.async_step_machine_type({CONF_FAMILY: ApplianceFamily.CUSTOM})
-    assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "custom"
-
-    # Submit custom step
-    result2 = await flow.async_step_custom({})
-    assert result2["type"] == FlowResultType.CREATE_ENTRY
-    assert result2["data"][CONF_FAMILY] == ApplianceFamily.CUSTOM
+    result = await flow.async_step_custom({})
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_FAMILY] == ApplianceFamily.CUSTOM
 
 
 @pytest.mark.asyncio
@@ -120,6 +133,6 @@ async def test_config_flow_custom_model_text(mock_hass):
 
     # Submit custom model name
     result2 = await flow.async_step_custom_model_text({CONF_CUSTOM_MODEL: "Senator Smart Touch Custom"})
-    assert result2["type"] == FlowResultType.FORM
+    assert result2["type"] == FlowResultType.MENU
     assert result2["step_id"] == "verify_phase1"
     assert flow._model == "Senator Smart Touch Custom"
