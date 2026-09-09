@@ -7,26 +7,58 @@
         "data": {
           "host": "IP Address",
           "port": "Port"
+        },
+        "data_description": {
+          "host": "Local static IP or DHCP reserved address of the washing machine on your home Wi-Fi network (e.g. 192.168.0.100).",
+          "port": "Local HTTP port used by the GainSpan module (default: 80)."
         }
       },
-      "family": {
-        "title": "Select Appliance Series",
-        "description": "Select your IFB washing machine series to load the matching program dial matrix.",
+      "machine_type": {
+        "title": "Select Machine Category",
+        "description": "Select your IFB washing machine category to load the matching program dial matrix:",
         "data": {
-          "family": "Model Series"
+          "family": "Machine Category"
+        },
+        "data_description": {
+          "family": "Choose Washer Dryer Refresher (with steam/dry), Front Load Washer, or Top Load Washer."
         }
       },
-      "verify": {
-        "title": "Visual Verification Wizard",
-        "description": "Please check your washing machine display screen. Home Assistant has sent a test command to select '{program_name}' (Code {program_code}).\n\nDoes your machine's screen show '{program_name}'?",
+      "model": {
+        "title": "Select Model",
+        "description": "Select your {type_name} model from the catalog, or choose Other / Custom Model to specify your exact variant:",
         "data": {
-          "verified": "The screen displays this program",
+          "model": "Model Series"
+        },
+        "data_description": {
+          "model": "Specific model line (e.g. WD Executive ZXS, TurboDry, Senator, or custom)."
+        }
+      },
+      "custom_model_text": {
+        "title": "Custom Model Name",
+        "description": "Enter your exact IFB appliance model name as printed on the fascia panel or rating label:",
+        "data": {
+          "custom_model": "Model Name"
+        }
+      },
+      "verify_phase1": {
+        "title": "Physical Verification: Same Side",
+        "description": "{dial_image}\n\nYour machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the wheel.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "data": {
+          "verified": "The screen or LED matches this program",
+          "skip_verification": "Skip visual verification"
+        }
+      },
+      "verify_phase2": {
+        "title": "Physical Verification: Opposite Side",
+        "description": "{dial_image}\n\nNow testing the **{side_name}** of the wheel to verify the full dial matrix.\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "data": {
+          "verified": "The screen or LED matches this program",
           "skip_verification": "Skip visual verification"
         }
       },
       "custom": {
         "title": "Custom Configuration",
-        "description": "Your IFB washing machine will be configured in manual mode. You can define custom cycle codes if your machine layout differs from standard series."
+        "description": "Your IFB washing machine will be configured in manual mode."
       }
     },
     "error": {
@@ -36,6 +68,24 @@
     },
     "abort": {
       "already_configured": "This IFB washing machine is already configured in Home Assistant."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "IFB Washer Local Options",
+        "description": "Adjust operational scan intervals and model information:",
+        "data": {
+          "model": "Appliance Model Name",
+          "scan_interval_standby": "Standby Polling Interval",
+          "scan_interval_running": "Active Wash Polling Interval"
+        },
+        "data_description": {
+          "model": "Display model name shown in Home Assistant device registry.",
+          "scan_interval_standby": "Polling interval in seconds while the washer is idle or in standby (default: 15s).",
+          "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s)."
+        }
+      }
     }
   },
   "entity": {
@@ -101,10 +151,10 @@
         "name": "Pause"
       },
       "cancel": {
-        "name": "Cancel"
+        "name": "Cancel Cycle"
       },
       "power_off": {
-        "name": "Turn Off"
+        "name": "Power Off"
       }
     },
     "switch": {
@@ -114,4 +164,3 @@
     }
   }
 }
-

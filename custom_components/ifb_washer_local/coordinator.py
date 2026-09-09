@@ -27,8 +27,10 @@ from ifb_washer_local import (
 )
 
 from .const import (
+    CONF_CUSTOM_MODEL,
     CONF_CUSTOM_PROGRAMS,
     CONF_FAMILY,
+    CONF_MODEL,
     DEFAULT_FAMILY,
     DEFAULT_SCAN_INTERVAL_RUNNING,
     DEFAULT_SCAN_INTERVAL_STANDBY,
@@ -106,22 +108,34 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         return dt_util.utcnow() + timedelta(minutes=self.data.remaining_minutes)
 
     @property
+    def model_name(self) -> str:
+        """Return the user-selected or auto-resolved model name."""
+        if self.entry:
+            options = self.entry.options if isinstance(getattr(self.entry, "options", None), dict) else {}
+            data = self.entry.data if isinstance(getattr(self.entry, "data", None), dict) else {}
+            custom_m = options.get(CONF_CUSTOM_MODEL) or data.get(CONF_CUSTOM_MODEL)
+            if custom_m:
+                return str(custom_m)
+            m = options.get(CONF_MODEL) or data.get(CONF_MODEL)
+            if m and m != "custom":
+                return str(m)
+
+        if self.appliance_family == ApplianceFamily.WASHER_DRYER:
+            return "Washer Dryer (WD Executive ZXS Series)"
+        if self.appliance_family == ApplianceFamily.FRONT_LOAD:
+            return "Front Load (Senator / Executive Plus Series)"
+        if self.appliance_family == ApplianceFamily.TOP_LOAD_SMART:
+            return "Top Load (Smart Top Load Series)"
+        return "IFB Smart Washing Machine"
+
+    @property
     def device_info(self) -> DeviceInfo:
         """Return standardized device registry information."""
-        if self.appliance_family == ApplianceFamily.WASHER_DRYER:
-            model_name = "Front Load Washer Dryer (WD Executive ZXS Series)"
-        elif self.appliance_family == ApplianceFamily.FRONT_LOAD:
-            model_name = "Front Load (Senator / Executive Plus Series)"
-        elif self.appliance_family == ApplianceFamily.TOP_LOAD_SMART:
-            model_name = "Smart Top Load (SWID / SID Series)"
-        else:
-            model_name = "IFB Smart Washing Machine"
-
         return DeviceInfo(
             identifiers={(DOMAIN, self.client.host)},
-            name=f"IFB Washer ({self.client.host})",
+            name=f"IFB {self.model_name} ({self.client.host})",
             manufacturer="IFB Industries",
-            model=model_name,
+            model=self.model_name,
             configuration_url=f"http://{self.client.host}",
         )
 

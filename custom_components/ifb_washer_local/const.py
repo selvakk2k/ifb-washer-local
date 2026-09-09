@@ -11,6 +11,8 @@ CONF_HOST = "host"
 CONF_PORT = "port"
 CONF_SCAN_INTERVAL = "scan_interval"
 CONF_FAMILY = "family"
+CONF_MODEL = "model"
+CONF_CUSTOM_MODEL = "custom_model"
 CONF_CUSTOM_PROGRAMS = "custom_programs"
 
 DEFAULT_PORT = 80

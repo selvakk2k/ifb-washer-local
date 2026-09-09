@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -63,7 +64,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up IFB Washer binary sensors based on a config entry."""
-    coordinator: IFBWasherCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: IFBWasherCoordinator = getattr(entry, "runtime_data", None) or hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         IFBWasherBinarySensor(coordinator, description)
         for description in BINARY_SENSOR_TYPES

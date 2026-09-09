@@ -32,7 +32,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up IFB Washer select entities based on a config entry."""
-    coordinator: IFBWasherCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: IFBWasherCoordinator = getattr(entry, "runtime_data", None) or hass.data[DOMAIN][entry.entry_id]
     async_add_entities(
         [
             IFBWasherProgramSelect(coordinator),

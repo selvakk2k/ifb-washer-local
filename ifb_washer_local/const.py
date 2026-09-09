@@ -185,6 +185,64 @@ FAMILY_PROGRAM_MATRICES: dict[str, dict[int, str]] = {
     ApplianceFamily.TOP_LOAD_SMART: PROGRAM_CODES_TOP_LOAD,
 }
 
+# Human-friendly IFB Terminology for Machine Types
+MACHINE_TYPE_LABELS: dict[str, str] = {
+    ApplianceFamily.WASHER_DRYER: "Washer Dryer Refresher",
+    ApplianceFamily.FRONT_LOAD: "Front Load Washer",
+    ApplianceFamily.TOP_LOAD_SMART: "Top Load Washer",
+}
+
+# Known Models Catalog per Appliance Category
+MODELS_BY_FAMILY: dict[str, list[str]] = {
+    ApplianceFamily.WASHER_DRYER: [
+        "WD Executive ZXS (7kg / 4kg)",
+        "WD Executive ZXR (8.5kg / 6.5kg)",
+        "TurboDry 7010 (7kg / 4kg)",
+        "TurboDry 8514 (8.5kg / 6.5kg)",
+        "Senator WDR 8.5/6.5",
+        "Senator Smart Touch WDR",
+        "Washer Dryer 742 Series",
+        "custom",
+    ],
+    ApplianceFamily.FRONT_LOAD: [
+        "Executive ZXM / Plus",
+        "Senator Smart Touch",
+        "Senator Neo / Plus",
+        "Elite MXS / Plus",
+        "Serena ZSS / MSS",
+        "Senorita SXS / VXS",
+        "Elena Plus / Eva Plus",
+        "Diva Aqua",
+        "custom",
+    ],
+    ApplianceFamily.TOP_LOAD_SMART: [
+        "TL-RGS Aqua",
+        "TL-R2BSS / R2BR",
+        "TL801 / TL800",
+        "Smart Top Load (SWID / SID Series)",
+        "custom",
+    ],
+}
+
+# Physical Dial Sides Mapping (Left vs Right Arcs / Groups)
+# For front load and washer dryers: (right_side_codes, left_side_codes)
+# For top loaders: (group1_daily_codes, group2_special_codes)
+DIAL_SIDES_BY_FAMILY: dict[str, tuple[list[int], list[int]]] = {
+    ApplianceFamily.WASHER_DRYER: (
+        [1, 2, 3, 4, 5, 6, 7],
+        [8, 9, 10, 11, 12, 13, 14, 15],
+    ),
+    ApplianceFamily.FRONT_LOAD: (
+        [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+        [1, 2, 3, 4, 5, 6, 7],
+    ),
+    ApplianceFamily.TOP_LOAD_SMART: (
+        [1, 2, 3, 4, 5],
+        [6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    ),
+}
+
+
 # Telemetry Signature Definition & Lookup Table for Reverse-Engineering Programs
 from dataclasses import dataclass
 
