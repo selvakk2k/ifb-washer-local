@@ -36,11 +36,45 @@ The washing machine's GainSpan module hosts an embedded web server on port 80.
   `63 0a 01 00 01 07 00 00 00 00 76 ec`
 * **Program Selection (21 bytes)**:
   `63 13 03 00 00 <prog_id> 00 <spin_code> 00 <temp_code> 00 00 00 00 <child_lock> 00 00 00 00 <chk1> <chk2>`
+* **User Option / Modifier Command (9 bytes - Type 0x02)**:
+  `63 07 02 00 <hil_id> <option_val> 00 <chk1> <chk2>`
+  *(For `hil_id` in {5, 9}: `option_val` is written to byte 6; for all other options including 6, 7, 8, 12, 13, 14, 16, 18, 19, 21: `option_val` is placed at byte 5).*
+  - `HIL_OPTION_RAPID_WASH`: `4`
+  - `HIL_OPTION_PRE_WASH`: `6`
+  - `HIL_OPTION_EXTRA_RINSE`: `7` (0–3 rinses)
+  - `HIL_OPTION_RINSE_HOLD`: `8`
+  - `HIL_OPTION_HOT_RINSE`: `12`
+  - `HIL_OPTION_TIME_SAVER`: `13`
+  - `HIL_OPTION_ECO`: `14`
+  - `HIL_OPTION_ANTI_CREASE`: `16`
+  - `HIL_OPTION_DRY`: `18` (0=Off, 1=Cupboard, 2=Iron, 3=Eco, 4=Gentle, 5=Time)
+  - `HIL_OPTION_STEAM`: `19`
+  - `HIL_OPTION_AROMA`: `21`
+  - `HIL_OPTION_WARM_SOAK`: `22`
 * **Fixed Commands (12 bytes)**:
   - Play: `63 0a 01 00 01 01 00 00 00 00 70 e6`
   - Pause: `63 0a 01 00 01 03 00 00 00 00 72 e8`
   - Cancel / Stop: `63 0a 01 00 01 04 00 00 00 00 73 e9`
+  - Power On: `63 0a 01 00 01 11 00 00 00 00 80 f6`
   - Power Off: `63 0a 01 00 01 12 00 00 00 00 81 f7`
+
+### Telemetry Status Frame Decoding (38 bytes)
+* **Byte 7**: Bit 6 = Standby polarity (0 = Powered ON, 1 = Standby OFF).
+* **Byte 9**: `extraRinse` count (0 = None, 1 = +1, 2 = +2, 3 = +3).
+* **Byte 11 (`option2` bitmask)**:
+  - Bit 2: Rinse Hold
+  - Bit 3: Anti-Crease
+  - Bit 6: Aroma
+  - Bit 9: Steam
+* **Byte 28**: `dryerOptions` code (0 = Off, 1 = Cupboard Dry, 2 = Iron Dry, 3 = Eco Dry, 4 = Gentle Dry, 5 = Time Dry).
+* **Byte 29 (`optionEnable1` bitmask)**:
+  - Bit 0: Pre-wash
+  - Bit 1: Soak
+  - Bit 2: Warm Soak
+  - Bit 3: Hot Rinse
+  - Bit 4: Time Saver
+  - Bit 6: Eco
+  - Bit 7: Rapid Wash
 
 ### Checksum Calculation
 The two trailing bytes are computed using signed-byte accumulation across all preceding bytes (`data[:-2]`):
@@ -177,7 +211,8 @@ When building the custom Lovelace card, follow the **Indian Smart Appliance Desi
 * **Quick Action Controls**:
   - Primary button: Start / Pause (prominent floating accent button).
   - Secondary buttons: Power Off, Child Lock toggle.
-  - Selectors: Program dropdown, Spin Speed chips (400, 800, 1000, 1200, 1400), Temperature chips (Cold, 30°, 40°, 60°, 95°).
+  - Selectors: Program dropdown, Spin Speed chips, Temperature chips, Extra Rinse chips, Dry Mode chips.
+  - Modifiers: Pre-wash, Soak, Rinse Hold, Time Saver, Hot Rinse, Eco, Steam, Aroma, Anti-Crease toggle chips.
 
 ---
 
@@ -198,9 +233,9 @@ ifb-washer-local/
 │   ├── coordinator.py                          # Adaptive polling coordinator (options-driven)
 │   ├── sensor.py                               # State, Program, Remaining, RPM, Temp, Timestamp, Progress
 │   ├── binary_sensor.py                        # Running, Door, Child Lock, Problem
-│   ├── select.py                               # Program, Spin Speed, Temp, Delay Start selectors
+│   ├── select.py                               # Program, Spin Speed, Temp, Delay, Extra Rinse, Dry Mode
 │   ├── button.py                               # Start, Pause, Cancel buttons
-│   ├── switch.py                               # Power, Child Lock switches
+│   ├── switch.py                               # Power, Child Lock, and 9 Cycle Modifier switches
 │   ├── manifest.json                           # HACS / Core manifest
 │   └── strings.json / translations/            # Localization strings
 └── tests/                                      # Pytest test suite

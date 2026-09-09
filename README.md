@@ -28,7 +28,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 * **100% Local Control**: Direct LAN HTTP communication on port 80 with the washer's internal controller. No external cloud dependence.
 * **Instant Telemetry**: Live updates for cycle progress, remaining duration, active program, motor speed (RPM), and water temperature.
 * **Full Remote Controls**: Start, pause, cancel, and turn off the machine directly from Home Assistant.
-* **Option Customization**: Remote selection of wash programs, spin speed, temperature, and child lock toggling.
+* **Option Customization**: Remote selection of wash programs, spin speed, temperature, extra rinse, dry modes, child lock, and wash modifiers (pre-wash, soak, steam, aroma, etc.).
 * **Adaptive Polling**: Automatically speeds up polling intervals during active wash cycles (every 5 seconds) and relaxes while idle in standby (every 15 seconds) to minimize local network traffic.
 * **Zero Authentication Friction**: Direct binary packet communication eliminates expired auth tokens and cloud outages.
 
@@ -112,10 +112,22 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 * **Spin Speed**: Remote adjustment of spin speed (`select.spin_speed_select` - No Spin, 400, 600, 800, 1000, 1200, 1400 RPM).
 * **Temperature**: Remote adjustment of wash temperature (`select.temperature_select` - Cold, 30°C, 40°C, 60°C, 95°C).
 * **Delay Start**: Remote selection of delay start timer (`select.delay_start_select` - No Delay, 30 Min, 1 to 19 Hours).
+* **Extra Rinse**: Remote selection of additional rinses (`select.extra_rinse_select` - 0 (None), +1 Rinse, +2 Rinses, +3 Rinses).
+* **Dry Mode**: Remote selection of drying profiles on washer-dryer models (`select.dry_mode_select` - Off, Cupboard Dry, Iron Dry, Eco Dry, Gentle Dry, Time Dry).
 
 ### Controls
 * **Power Switch**: Toggle washer power state (`switch.power` - On / Low-power Standby).
 * **Child Lock Switch**: Toggle physical control panel lock (`switch.child_lock_switch`).
+* **Modifier Switches**: Individual toggles for cycle modifiers:
+  * **Pre-wash** (`switch.prewash_switch`)
+  * **Soak** (`switch.soak_switch`)
+  * **Rinse Hold** (`switch.rinse_hold_switch`)
+  * **Time Saver** (`switch.time_saver_switch`)
+  * **Hot Rinse** (`switch.hot_rinse_switch`)
+  * **Eco** (`switch.eco_switch`)
+  * **Steam** (`switch.steam_switch`)
+  * **Aroma** (`switch.aroma_switch`)
+  * **Anti-Crease** (`switch.anti_crease_switch`)
 * **Start Button**: Start or resume wash program (`button.start`).
 * **Pause Button**: Pause running wash program (`button.pause`).
 * **Cancel Button**: Terminate the current cycle (`button.cancel`).
@@ -138,9 +150,16 @@ async def main():
         print(f"Time Remaining: {state.remaining_minutes} min")
         print(f"State: {state.state_name}")
         print(f"Child Lock: {state.child_lock}")
+        print(f"Extra Rinse: {state.extra_rinse_name}")
+        print(f"Dry Mode: {state.dry_mode_name}")
 
         # Select Mix / Daily program (Code 13)
         await client.select_program(program_code=13)
+
+        # Configure cycle options and modifiers
+        await client.set_extra_rinse(1)
+        await client.set_steam(True)
+        await client.set_prewash(True)
 
         # Toggle Child Lock
         await client.set_child_lock(True)
