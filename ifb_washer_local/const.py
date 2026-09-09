@@ -146,9 +146,6 @@ PROGRAM_CODES_WASHER_DRYER: dict[int, str] = {
     13: "Mix / Daily",
     14: "Express 15'",
     15: "Tub Clean",
-    # App-Exclusive Programs for Hardware Testing & LAN Control
-    16: "Spin Dry / Drain",
-    17: "Rinse + Spin",
 }
 
 # Alias for backwards compatibility
@@ -248,7 +245,7 @@ MODELS_BY_FAMILY: dict[str, list[str]] = {
 DIAL_SIDES_BY_FAMILY: dict[str, tuple[list[int], list[int]]] = {
     ApplianceFamily.WASHER_DRYER: (
         [1, 2, 3, 4, 5, 6, 7],
-        [8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+        [8, 9, 10, 11, 12, 13, 14, 15],
     ),
     ApplianceFamily.FRONT_LOAD: (
         [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
