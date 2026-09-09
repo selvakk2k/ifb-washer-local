@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
+from homeassistant.components.switch import (
+    SwitchDeviceClass,
+    SwitchEntity,
+    SwitchEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -21,7 +25,47 @@ async def async_setup_entry(
 ) -> None:
     """Set up IFB Washer switches based on a config entry."""
     coordinator: IFBWasherCoordinator = getattr(entry, "runtime_data", None) or hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([IFBWasherChildLockSwitch(coordinator)])
+    async_add_entities([
+        IFBWasherPowerSwitch(coordinator),
+        IFBWasherChildLockSwitch(coordinator),
+    ])
+
+
+class IFBWasherPowerSwitch(
+    CoordinatorEntity[IFBWasherCoordinator], SwitchEntity
+):
+    """Switch to toggle the washer's power state (On / Standby)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: IFBWasherCoordinator) -> None:
+        """Initialize the power switch."""
+        super().__init__(coordinator)
+        self.entity_description = SwitchEntityDescription(
+            key="power",
+            translation_key="power",
+            icon="mdi:power",
+            device_class=SwitchDeviceClass.SWITCH,
+        )
+        self._attr_unique_id = f"{coordinator.client.host}_power_switch"
+        self._attr_device_info = coordinator.device_info
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return True if the machine is powered on."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.is_powered_on
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        """Power on the machine."""
+        state = await self.coordinator.client.power_on()
+        self.coordinator.async_set_updated_data(state)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        """Power off the machine into low-power standby."""
+        state = await self.coordinator.client.power_off()
+        self.coordinator.async_set_updated_data(state)
 
 
 class IFBWasherChildLockSwitch(

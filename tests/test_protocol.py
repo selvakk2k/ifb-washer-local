@@ -5,6 +5,8 @@ from ifb_washer_local.const import (
     FIXED_CMD_CANCEL,
     FIXED_CMD_PAUSE,
     FIXED_CMD_PLAY,
+    FIXED_CMD_POWER_ON,
+    FIXED_CMD_POWER_OFF,
     HIL_OPTION_CHILD_LOCK,
     HIL_OPTION_SPIN,
     HIL_OPTION_TEMP,
@@ -252,4 +254,33 @@ def test_delay_start_parsing():
     assert state.delay_start_minutes == 150  # 2*60 + 30
     assert state.is_delay_start is True
     assert state.state_name == "Delay Start"
+
+
+def test_power_on_off_fixed_commands():
+    """Verify serialization of power on and power off fixed commands against official frames."""
+    # Power ON: cmd 0x11 -> 63 0a 01 00 01 11 00 00 00 00 80 00
+    on_pkt = build_fixed_command(FIXED_CMD_POWER_ON)
+    assert on_pkt.hex() == "630a01000111000000008000"
+
+    # Power OFF: cmd 0x12 -> 63 0a 01 00 01 12 00 00 00 00 81 02
+    off_pkt = build_fixed_command(FIXED_CMD_POWER_OFF)
+    assert off_pkt.hex() == "630a01000112000000008102"
+
+
+def test_power_state_telemetry_parsing():
+    """Verify decoding of powered on vs powered off status via byte 7 bit 6."""
+    raw = bytearray.fromhex("6324810001070d41060002220000000000010c0000220000000000000000010100000001baf4")
+    # Byte 7 = 0x41 (0100 0001) -> bit 6 is 1 -> is_powered_on is True
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    state_on = parse_status_frame(bytes(raw))
+    assert state_on.is_powered_on is True
+
+    # Byte 7 = 0x01 (0000 0001) -> bit 6 is 0 -> is_powered_on is False
+    raw[7] = 0x01
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    state_off = parse_status_frame(bytes(raw))
+    assert state_off.is_powered_on is False
+
 

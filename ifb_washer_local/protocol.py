@@ -145,6 +145,7 @@ class WasherState:
     cycle_progress: float = 0.0
     tub_clean_required: bool = False
     delay_start_minutes: int = 0
+    is_powered_on: bool = True
     error_code: str = ""
     error_description: str = ""
 
@@ -377,6 +378,7 @@ def parse_status_frame(
         cycle_progress = 0.0
 
     tub_clean_required = bool(state_code == MachineState.COMPLETE and ((data[7] >> 7) & 1) == 1)
+    is_powered_on = bool((data[7] >> 6) & 1) if len(data) > 7 else True
 
     # Fault / Problem Detection from dedicated alarm registers:
     # data[24] = alarm3, data[26] = alarm1, data[27] = alarm2, data[41] = alarm4
@@ -421,6 +423,7 @@ def parse_status_frame(
         cycle_progress=cycle_progress,
         tub_clean_required=tub_clean_required,
         delay_start_minutes=delay_start_minutes,
+        is_powered_on=is_powered_on,
         error_code=error_code,
         error_description=error_desc,
     )

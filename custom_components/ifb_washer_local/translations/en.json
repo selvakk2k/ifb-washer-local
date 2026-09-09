@@ -165,12 +165,12 @@
       },
       "cancel": {
         "name": "Cancel Cycle"
-      },
-      "power_off": {
-        "name": "Power Off"
       }
     },
     "switch": {
+      "power": {
+        "name": "Power"
+      },
       "child_lock_switch": {
         "name": "Child Lock"
       }

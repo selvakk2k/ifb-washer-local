@@ -43,12 +43,6 @@ BUTTON_TYPES: tuple[IFBWasherButtonEntityDescription, ...] = (
         icon="mdi:stop",
         press_action=lambda client: client.cancel(),
     ),
-    IFBWasherButtonEntityDescription(
-        key="power_off",
-        translation_key="power_off",
-        icon="mdi:power",
-        press_action=lambda client: client.power_off(),
-    ),
 )
 
 

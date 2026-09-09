@@ -14,6 +14,7 @@ from .const import (
     FIXED_CMD_CANCEL,
     FIXED_CMD_PAUSE,
     FIXED_CMD_PLAY,
+    FIXED_CMD_POWER_ON,
     FIXED_CMD_POWER_OFF,
     GAINSPAN_PROFILE_ENDPOINT,
     HIL_OPTION_SPIN,
@@ -183,10 +184,27 @@ class IFBWasherClient:
         await asyncio.sleep(0.5)
         return await self.get_state()
 
-    async def power_off(self) -> None:
+    async def power_on(self) -> WasherState:
+        """Turn on the washing machine."""
+        cmd_pkt = build_fixed_command(FIXED_CMD_POWER_ON)
+        await self._send_raw_command(cmd_pkt)
+        for _ in range(6):
+            await asyncio.sleep(0.4)
+            state = await self.get_state()
+            if state.is_powered_on:
+                return state
+        return state
+
+    async def power_off(self) -> WasherState:
         """Turn off the washing machine."""
         cmd_pkt = build_fixed_command(FIXED_CMD_POWER_OFF)
         await self._send_raw_command(cmd_pkt)
+        for _ in range(6):
+            await asyncio.sleep(0.4)
+            state = await self.get_state()
+            if not state.is_powered_on:
+                return state
+        return state
 
     async def close(self) -> None:
         """Close the underlying session if owned by the client."""

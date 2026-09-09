@@ -311,5 +311,48 @@ async def test_delay_start_options_and_select():
     client.set_delay_start.assert_awaited_once_with(0)
 
 
+async def test_power_switch():
+    """Verify power switch state reporting and turn_on/turn_off actions."""
+    from unittest.mock import AsyncMock
+    from custom_components.ifb_washer_local.switch import IFBWasherPowerSwitch
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    state_on = create_mock_state()
+    state_on.is_powered_on = True
+    state_off = create_mock_state()
+    state_off.is_powered_on = False
+
+    client.power_on = AsyncMock(return_value=state_on)
+    client.power_off = AsyncMock(return_value=state_off)
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_set_updated_data = MagicMock()
+
+    power_switch = IFBWasherPowerSwitch(coord)
+    assert power_switch.icon == "mdi:power"
+
+    # When powered on
+    coord.data = state_on
+    assert power_switch.is_on is True
+
+    # When powered off
+    coord.data = state_off
+    assert power_switch.is_on is False
+
+    # Turn on
+    await power_switch.async_turn_on()
+    client.power_on.assert_awaited_once()
+    coord.async_set_updated_data.assert_called_once_with(state_on)
+
+    # Turn off
+    coord.async_set_updated_data.reset_mock()
+    await power_switch.async_turn_off()
+    client.power_off.assert_awaited_once()
+    coord.async_set_updated_data.assert_called_once_with(state_off)
+
+
+
 
 
