@@ -361,5 +361,30 @@ def test_build_feature_option_commands():
     assert pkt_prewash[-2] == c1
     assert pkt_prewash[-1] == c2
 
+def test_program_capabilities_wash_guide_map():
+    """Verify Wash Guide Map capabilities for various programs."""
+    from ifb_washer_local.const import get_program_capabilities
 
+    # Refresh (4): Tumble only, No Spin, Cold only, no dry
+    refresh_caps = get_program_capabilities(4)
+    assert refresh_caps.allowed_spins == ("No Spin",)
+    assert refresh_caps.allowed_temps == ("Cold",)
+    assert refresh_caps.supports_dry is False
+    assert refresh_caps.supports_steam is True
 
+    # CradleWash (6): Gentle wash, max 600 RPM, max 40°C, no dry
+    cradle_caps = get_program_capabilities(6)
+    assert cradle_caps.allowed_spins == ("No Spin", "400 RPM", "600 RPM")
+    assert "95°C" not in cradle_caps.allowed_temps
+    assert cradle_caps.supports_dry is False
+
+    # Wash + Dry 2Hr (1): Supports dry
+    wd_caps = get_program_capabilities(1)
+    assert wd_caps.supports_dry is True
+    assert wd_caps.supports_prewash is False
+
+    # Cotton (12): Supports all temps and spins up to 1400 RPM
+    cotton_caps = get_program_capabilities(12)
+    assert "95°C" in cotton_caps.allowed_temps
+    assert "1400 RPM" in cotton_caps.allowed_spins
+    assert cotton_caps.supports_dry is False

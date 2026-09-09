@@ -165,5 +165,16 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
                 "program_duration": self.coordinator.data.total_program_minutes,
                 "display_minutes": self.coordinator.data.remaining_minutes,
             }
+        if self.entity_description.key == "program" and self.coordinator.data:
+            try:
+                from .ifb_washer_local.const import get_program_capabilities
+            except ImportError:
+                from ifb_washer_local.const import get_program_capabilities
+
+            caps = get_program_capabilities(self.coordinator.data.program_code)
+            return {
+                "program_code": self.coordinator.data.program_code,
+                **caps.to_dict(),
+            }
         return None
 

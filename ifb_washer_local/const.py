@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass
 from enum import Enum, IntEnum
 
 DEFAULT_PORT = 80
@@ -401,4 +402,183 @@ DRY_OPTIONS: dict[int, str] = {
 DRY_NAME_TO_CODE: dict[str, int] = {
     name: code for code, name in DRY_OPTIONS.items()
 }
+
+
+@dataclass(frozen=True)
+class ProgramCapabilities:
+    """Allowed options and constraints for a wash program per official Wash Guide Map."""
+
+    allowed_temps: tuple[str, ...]
+    allowed_spins: tuple[str, ...]
+    supports_dry: bool = False
+    supports_steam: bool = True
+    supports_prewash: bool = True
+    supports_soak: bool = True
+    supports_time_saver: bool = True
+    supports_extra_rinse: bool = True
+    supports_hot_rinse: bool = True
+    supports_rinse_hold: bool = True
+    supports_eco: bool = True
+    supports_aroma: bool = True
+    supports_anti_crease: bool = True
+
+    def to_dict(self) -> dict[str, bool | list[str]]:
+        """Return capabilities as a dictionary."""
+        return {
+            "allowed_temps": list(self.allowed_temps),
+            "allowed_spins": list(self.allowed_spins),
+            "supports_dry": self.supports_dry,
+            "supports_steam": self.supports_steam,
+            "supports_prewash": self.supports_prewash,
+            "supports_soak": self.supports_soak,
+            "supports_time_saver": self.supports_time_saver,
+            "supports_extra_rinse": self.supports_extra_rinse,
+            "supports_hot_rinse": self.supports_hot_rinse,
+            "supports_rinse_hold": self.supports_rinse_hold,
+            "supports_eco": self.supports_eco,
+            "supports_aroma": self.supports_aroma,
+            "supports_anti_crease": self.supports_anti_crease,
+        }
+
+
+# Program Capabilities per Official Wash Guide Map (Pages 57-67)
+PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
+    1: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
+        supports_dry=True,
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+    ),
+    2: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=True,
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+    ),
+    3: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=True,
+        supports_steam=True,
+        supports_prewash=False,
+        supports_soak=False,
+    ),
+    4: ProgramCapabilities(
+        allowed_temps=("Cold",),
+        allowed_spins=("No Spin",),
+        supports_dry=False,
+        supports_steam=True,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_extra_rinse=False,
+        supports_hot_rinse=False,
+        supports_rinse_hold=False,
+        supports_eco=False,
+    ),
+    5: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        supports_dry=False,
+        supports_steam=True,
+    ),
+    6: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM"),
+        supports_dry=False,
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+    ),
+    7: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        supports_dry=False,
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+    ),
+    8: ProgramCapabilities(
+        allowed_temps=("Cold", "40°C", "60°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        supports_dry=False,
+    ),
+    9: ProgramCapabilities(
+        allowed_temps=("Cold", "40°C", "60°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        supports_dry=False,
+        supports_steam=True,
+    ),
+    10: ProgramCapabilities(
+        allowed_temps=("40°C", "60°C", "95°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM"),
+        supports_dry=False,
+        supports_steam=True,
+    ),
+    11: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C", "60°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
+        supports_dry=False,
+    ),
+    12: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C", "60°C", "95°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=False,
+    ),
+    13: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C", "60°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
+        supports_dry=False,
+    ),
+    14: ProgramCapabilities(
+        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
+        supports_dry=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+    ),
+    15: ProgramCapabilities(
+        allowed_temps=("Cold", "60°C", "95°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        supports_dry=False,
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+        supports_extra_rinse=False,
+        supports_hot_rinse=False,
+        supports_rinse_hold=False,
+        supports_eco=False,
+        supports_aroma=False,
+        supports_anti_crease=False,
+    ),
+}
+
+DEFAULT_PROGRAM_CAPABILITIES = ProgramCapabilities(
+    allowed_temps=("Cold", "30°C", "40°C", "60°C", "95°C"),
+    allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+    supports_dry=True,
+    supports_steam=True,
+    supports_prewash=True,
+    supports_soak=True,
+    supports_time_saver=True,
+    supports_extra_rinse=True,
+    supports_hot_rinse=True,
+    supports_rinse_hold=True,
+    supports_eco=True,
+    supports_aroma=True,
+    supports_anti_crease=True,
+)
+
+
+def get_program_capabilities(program_code: int) -> ProgramCapabilities:
+    """Return program option capabilities for a given program code."""
+    return PROGRAM_CAPABILITIES_WASHER_DRYER.get(program_code, DEFAULT_PROGRAM_CAPABILITIES)
+
 
