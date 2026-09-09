@@ -159,3 +159,56 @@ def test_program_select_options_by_family():
     assert "Uniform / Linen" in select_fl.options
     assert "Sports Wear" in select_fl.options
 
+
+def test_temperature_select_and_sensor_none():
+    """Verify temperature selector and sensor properly handle code 0 as None."""
+    from custom_components.ifb_washer_local.select import IFBWasherTemperatureSelect
+    from custom_components.ifb_washer_local.sensor import SENSOR_TYPES, IFBWasherSensor
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    coord = IFBWasherCoordinator(hass, client)
+
+    temp_select = IFBWasherTemperatureSelect(coord)
+    assert "None" in temp_select.options
+    assert "40°C" in temp_select.options
+
+    # Machine on Refresh / Steam (code 0 -> "None")
+    state = create_mock_state()
+    state.temperature_code = 0
+    state.temperature_name = "None"
+    coord.data = state
+    assert temp_select.current_option == "None"
+
+    # Verify sensor also reports None
+    temp_sensor_desc = next(d for d in SENSOR_TYPES if d.key == "temperature_setting")
+    sensor = IFBWasherSensor(coord, temp_sensor_desc)
+    assert sensor.native_value == "None"
+
+
+async def test_program_select_async_set_updated_data():
+    """Verify selecting a program updates coordinator data directly without refresh bounce."""
+    from unittest.mock import AsyncMock
+    from custom_components.ifb_washer_local.select import IFBWasherProgramSelect
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    updated_state = create_mock_state(is_running=False, remaining_minutes=72)
+    updated_state.program_code = 13
+    updated_state.program_name = "Mix / Daily"
+    client.select_program = AsyncMock(return_value=updated_state)
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_set_updated_data = MagicMock()
+    coord.async_request_refresh = AsyncMock()
+
+    select = IFBWasherProgramSelect(coord)
+    await select.async_select_option("Mix / Daily")
+
+    client.select_program.assert_awaited_once_with(13)
+    coord.async_set_updated_data.assert_called_once_with(updated_state)
+    coord.async_request_refresh.assert_not_called()
+
+

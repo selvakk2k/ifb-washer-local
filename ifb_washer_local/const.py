@@ -329,7 +329,7 @@ SPIN_SPEED_RPM_TO_CODE: dict[int, int] = {
 
 # Temperature Options (Option ID 3)
 TEMPERATURE_OPTIONS: dict[int, str] = {
-    0: "Not Set",
+    0: "None",
     2: "Cold",
     3: "30°C",
     4: "40°C",

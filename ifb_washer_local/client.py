@@ -113,8 +113,13 @@ class IFBWasherClient:
         """Select a wash program and return the updated state."""
         cmd_pkt = build_program_selection(program_code, spin_rpm, temp_c)
         await self._send_raw_command(cmd_pkt)
-        await asyncio.sleep(0.3)
-        return await self.get_state()
+        # Allow MCU to settle relays and update telemetry registers (typically 0.8s - 1.2s)
+        for _ in range(6):
+            await asyncio.sleep(0.4)
+            state = await self.get_state()
+            if state.program_code == program_code:
+                return state
+        return state
 
     async def set_child_lock(self, enable: bool) -> WasherState:
         """Enable or disable the child lock and return the updated state."""
@@ -127,22 +132,35 @@ class IFBWasherClient:
         """Set the spin speed option code (e.g. 6 for 1000 RPM)."""
         cmd_pkt = build_user_option_command(HIL_OPTION_SPIN, spin_code)
         await self._send_raw_command(cmd_pkt)
-        await asyncio.sleep(0.3)
-        return await self.get_state()
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            state = await self.get_state()
+            if state.spin_speed_code == spin_code:
+                return state
+        return state
 
     async def set_temperature(self, temp_code: int) -> WasherState:
         """Set the temperature option code (e.g. 4 for 40°C)."""
         cmd_pkt = build_user_option_command(HIL_OPTION_TEMP, temp_code)
         await self._send_raw_command(cmd_pkt)
-        await asyncio.sleep(0.3)
-        return await self.get_state()
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            state = await self.get_state()
+            if state.temperature_code == temp_code:
+                return state
+        return state
 
     async def set_delay_start(self, hours: int) -> WasherState:
         """Set the delay start time in hours (0 for No Delay, 1-24)."""
         cmd_pkt = build_user_option_command(HIL_OPTION_DELAY, hours)
         await self._send_raw_command(cmd_pkt)
-        await asyncio.sleep(0.3)
-        return await self.get_state()
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            state = await self.get_state()
+            expected_mins = hours * 60
+            if abs(state.delay_start_minutes - expected_mins) <= 2:
+                return state
+        return state
 
     async def start(self) -> WasherState:
         """Start or resume the selected wash cycle."""

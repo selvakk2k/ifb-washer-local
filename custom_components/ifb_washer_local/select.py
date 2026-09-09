@@ -77,8 +77,8 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
         """Change the selected wash program."""
         for code, name in self.coordinator.program_map.items():
             if name == option:
-                await self.coordinator.client.select_program(code)
-                await self.coordinator.async_request_refresh()
+                updated_state = await self.coordinator.client.select_program(code)
+                self.coordinator.async_set_updated_data(updated_state)
                 return
         _LOGGER.warning("Unknown program option selected: %s", option)
 
@@ -115,8 +115,8 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
             _LOGGER.warning("Unknown spin speed option selected: %s", option)
             return
 
-        await self.coordinator.client.set_spin_speed(spin_code)
-        await self.coordinator.async_request_refresh()
+        updated_state = await self.coordinator.client.set_spin_speed(spin_code)
+        self.coordinator.async_set_updated_data(updated_state)
 
 
 class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
@@ -134,9 +134,7 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
         )
         self._attr_unique_id = f"{coordinator.client.host}_temperature_select"
         self._attr_device_info = coordinator.device_info
-        self._attr_options = [
-            name for code, name in TEMPERATURE_OPTIONS.items() if code != 0
-        ]
+        self._attr_options = list(TEMPERATURE_OPTIONS.values())
 
     @property
     def current_option(self) -> str | None:
@@ -152,8 +150,8 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             _LOGGER.warning("Unknown temperature option selected: %s", option)
             return
 
-        await self.coordinator.client.set_temperature(temp_code)
-        await self.coordinator.async_request_refresh()
+        updated_state = await self.coordinator.client.set_temperature(temp_code)
+        self.coordinator.async_set_updated_data(updated_state)
 
 
 class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
@@ -191,5 +189,5 @@ class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
             _LOGGER.warning("Unknown delay start option selected: %s", option)
             return
 
-        await self.coordinator.client.set_delay_start(hours)
-        await self.coordinator.async_request_refresh()
+        updated_state = await self.coordinator.client.set_delay_start(hours)
+        self.coordinator.async_set_updated_data(updated_state)
