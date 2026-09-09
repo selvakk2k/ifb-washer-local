@@ -8,8 +8,19 @@ from ifb_washer_local.const import (
     FIXED_CMD_POWER_ON,
     FIXED_CMD_POWER_OFF,
     HIL_OPTION_CHILD_LOCK,
+    HIL_OPTION_DRY,
+    HIL_OPTION_EXTRA_RINSE,
+    HIL_OPTION_HOT_RINSE,
+    HIL_OPTION_PRE_WASH,
+    HIL_OPTION_RINSE_HOLD,
+    HIL_OPTION_SOAK,
     HIL_OPTION_SPIN,
+    HIL_OPTION_STEAM,
     HIL_OPTION_TEMP,
+    HIL_OPTION_TIME_SAVER,
+    HIL_OPTION_ECO,
+    HIL_OPTION_AROMA,
+    HIL_OPTION_ANTI_CREASE,
     MachineState,
 )
 from ifb_washer_local.protocol import (
@@ -282,5 +293,73 @@ def test_power_state_telemetry_parsing():
     raw[-2], raw[-1] = c1, c2
     state_off = parse_status_frame(bytes(raw))
     assert state_off.is_powered_on is False
+
+
+def test_extra_rinse_and_dry_mode_telemetry():
+    """Verify parsing of extra rinse count (byte 9) and dry mode code (byte 28)."""
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    # Byte 9 = 2 (+2 Rinses), Byte 28 = 1 (Cupboard Dry)
+    raw[9] = 2
+    raw[28] = 1
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+
+    state = parse_status_frame(bytes(raw))
+    assert state.extra_rinse == 2
+    assert state.extra_rinse_name == "+2 Rinses"
+    assert state.dry_mode_code == 1
+    assert state.dry_mode_name == "Cupboard Dry"
+
+
+def test_modifier_options_telemetry():
+    """Verify decoding of option2 (byte 11) and optionEnable1 (byte 29) bitmasks."""
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    # Byte 11 (option2): rinse_hold (bit 2 = 4), anti_crease (bit 3 = 8), aroma (bit 6 = 64) -> 4 + 8 + 64 = 76 (0x4C)
+    raw[11] = 0x4C
+    # Byte 29 (optionEnable1): prewash (bit 0 = 1), soak (bit 1 = 2), hot_rinse (bit 3 = 8), time_saver (bit 4 = 16), eco (bit 6 = 64) -> 91 (0x5B)
+    raw[29] = 0x5B
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+
+    state = parse_status_frame(bytes(raw))
+    assert state.rinse_hold is True
+    assert state.anti_crease is True
+    assert state.aroma is True
+    assert state.prewash is True
+    assert state.soak is True
+    assert state.hot_rinse is True
+    assert state.time_saver is True
+    assert state.eco is True
+
+
+def test_build_feature_option_commands():
+    """Verify packet encoding for new HIL option commands."""
+    # Extra rinse = 2 -> 9-byte packet with pkt[4]=7, pkt[5]=2
+    pkt_rinse = build_user_option_command(HIL_OPTION_EXTRA_RINSE, 2)
+    assert len(pkt_rinse) == 9
+    assert pkt_rinse[4] == HIL_OPTION_EXTRA_RINSE
+    assert pkt_rinse[5] == 2
+    c1, c2 = compute_checksums(pkt_rinse[:-2])
+    assert pkt_rinse[-2] == c1
+    assert pkt_rinse[-1] == c2
+
+    # Dry mode = 1 -> pkt[4]=18, pkt[5]=1
+    pkt_dry = build_user_option_command(HIL_OPTION_DRY, 1)
+    assert len(pkt_dry) == 9
+    assert pkt_dry[4] == HIL_OPTION_DRY
+    assert pkt_dry[5] == 1
+    c1, c2 = compute_checksums(pkt_dry[:-2])
+    assert pkt_dry[-2] == c1
+    assert pkt_dry[-1] == c2
+
+    # Pre-wash enable = 1 -> pkt[4]=6, pkt[5]=1
+    pkt_prewash = build_user_option_command(HIL_OPTION_PRE_WASH, 1)
+    assert len(pkt_prewash) == 9
+    assert pkt_prewash[4] == HIL_OPTION_PRE_WASH
+    assert pkt_prewash[5] == 1
+    c1, c2 = compute_checksums(pkt_prewash[:-2])
+    assert pkt_prewash[-2] == c1
+    assert pkt_prewash[-1] == c2
+
 
 

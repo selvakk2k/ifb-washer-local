@@ -470,6 +470,98 @@ async def test_client_lock_serialization():
     assert execution_order == ["start", "end", "start", "end"]
 
 
+async def test_extra_rinse_and_dry_mode_select_entities():
+    """Verify IFBWasherExtraRinseSelect and IFBWasherDryModeSelect."""
+    from custom_components.ifb_washer_local.select import (
+        IFBWasherDryModeSelect,
+        IFBWasherExtraRinseSelect,
+    )
+    from homeassistant.exceptions import HomeAssistantError
+    from ifb_washer_local import IFBTimeoutError
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    state = MagicMock(spec=WasherState)
+    state.extra_rinse = 1
+    state.extra_rinse_name = "+1 Rinse"
+    state.dry_mode_code = 2
+    state.dry_mode_name = "Iron Dry"
+    client.set_extra_rinse = AsyncMock(return_value=state)
+    client.set_dry_mode = AsyncMock(return_value=state)
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_request_refresh = AsyncMock()
+    coord.data = state
+
+    # Extra Rinse
+    rinse_select = IFBWasherExtraRinseSelect(coord)
+    assert rinse_select.current_option == "+1 Rinse"
+    assert "+2 Rinses" in rinse_select.options
+    await rinse_select.async_select_option("+2 Rinses")
+    client.set_extra_rinse.assert_called_once_with(2)
+
+    # Dry Mode
+    dry_select = IFBWasherDryModeSelect(coord)
+    assert dry_select.current_option == "Iron Dry"
+    assert "Cupboard Dry" in dry_select.options
+    await dry_select.async_select_option("Cupboard Dry")
+    client.set_dry_mode.assert_called_once_with(1)
+
+    # Error handling
+    import pytest
+    client.set_extra_rinse.side_effect = IFBTimeoutError("Timeout")
+    with pytest.raises(HomeAssistantError, match="Communication error setting extra rinse"):
+        await rinse_select.async_select_option("+3 Rinses")
+
+
+async def test_feature_switch_entities():
+    """Verify IFBWasherFeatureSwitch toggle operations and error handling."""
+    import pytest
+    from custom_components.ifb_washer_local.switch import (
+        FEATURE_SWITCHES,
+        IFBWasherFeatureSwitch,
+    )
+    from homeassistant.exceptions import HomeAssistantError
+    from ifb_washer_local import IFBError
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    state = MagicMock(spec=WasherState)
+    state.prewash = True
+    state.soak = False
+    state.steam = True
+    client.set_feature_toggle = AsyncMock(return_value=state)
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_request_refresh = AsyncMock()
+    coord.data = state
+
+    # Prewash switch
+    prewash_switch = IFBWasherFeatureSwitch(
+        coord,
+        key="prewash",
+        translation_key="prewash",
+        icon="mdi:washing-machine-alert",
+        hil_id=6,
+        state_attr="prewash",
+    )
+    assert prewash_switch.is_on is True
+
+    await prewash_switch.async_turn_off()
+    client.set_feature_toggle.assert_called_with(6, False)
+
+    await prewash_switch.async_turn_on()
+    client.set_feature_toggle.assert_called_with(6, True)
+
+    # Error handling
+    client.set_feature_toggle.side_effect = IFBError("MCU Error")
+    with pytest.raises(HomeAssistantError, match="Washer error enabling prewash"):
+        await prewash_switch.async_turn_on()
+
+
+
 
 
 

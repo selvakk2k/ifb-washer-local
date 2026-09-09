@@ -13,8 +13,13 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 try:
     from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        ApplianceFamily,
         DELAY_START_NAME_TO_CODE,
         DELAY_START_OPTIONS,
+        DRY_NAME_TO_CODE,
+        DRY_OPTIONS,
+        EXTRA_RINSE_NAME_TO_CODE,
+        EXTRA_RINSE_OPTIONS,
         SPIN_SPEED_OPTIONS,
         TEMPERATURE_OPTIONS,
     )
@@ -25,8 +30,13 @@ try:
     )
 except ImportError:
     from .ifb_washer_local.const import (
+        ApplianceFamily,
         DELAY_START_NAME_TO_CODE,
         DELAY_START_OPTIONS,
+        DRY_NAME_TO_CODE,
+        DRY_OPTIONS,
+        EXTRA_RINSE_NAME_TO_CODE,
+        EXTRA_RINSE_OPTIONS,
         SPIN_SPEED_OPTIONS,
         TEMPERATURE_OPTIONS,
     )
@@ -54,14 +64,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up IFB Washer select entities based on a config entry."""
     coordinator: IFBWasherCoordinator = getattr(entry, "runtime_data", None) or hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            IFBWasherProgramSelect(coordinator),
-            IFBWasherSpinSpeedSelect(coordinator),
-            IFBWasherTemperatureSelect(coordinator),
-            IFBWasherDelayStartSelect(coordinator),
-        ]
-    )
+    entities: list[SelectEntity] = [
+        IFBWasherProgramSelect(coordinator),
+        IFBWasherSpinSpeedSelect(coordinator),
+        IFBWasherTemperatureSelect(coordinator),
+        IFBWasherExtraRinseSelect(coordinator),
+        IFBWasherDelayStartSelect(coordinator),
+    ]
+    if coordinator.appliance_family in (ApplianceFamily.WASHER_DRYER, "washer_dryer"):
+        entities.append(IFBWasherDryModeSelect(coordinator))
+    async_add_entities(entities)
 
 
 class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
@@ -236,3 +248,86 @@ class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
             raise HomeAssistantError(f"Communication error setting delay start '{option}': {err}") from err
         except IFBError as err:
             raise HomeAssistantError(f"Washer error setting delay start '{option}': {err}") from err
+
+
+class IFBWasherExtraRinseSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
+    """Selector entity for configuring Extra Rinse cycles (0 to 3)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: IFBWasherCoordinator) -> None:
+        """Initialize the extra rinse selector."""
+        super().__init__(coordinator)
+        self.entity_description = SelectEntityDescription(
+            key="extra_rinse_select",
+            translation_key="extra_rinse_select",
+            icon="mdi:water-plus",
+        )
+        self._attr_unique_id = f"{coordinator.client.host}_extra_rinse_select"
+        self._attr_device_info = coordinator.device_info
+        self._attr_options = list(EXTRA_RINSE_OPTIONS.values())
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current extra rinse setting."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.extra_rinse_name
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the extra rinse setting."""
+        code = EXTRA_RINSE_NAME_TO_CODE.get(option)
+        if code is None:
+            _LOGGER.warning("Unknown extra rinse option selected: %s", option)
+            return
+
+        try:
+            updated_state = await self.coordinator.client.set_extra_rinse(code)
+            self.coordinator.async_set_updated_data(updated_state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error setting extra rinse '{option}': {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error setting extra rinse '{option}': {err}") from err
+
+
+class IFBWasherDryModeSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
+    """Selector entity for choosing Washer Dryer drying mode."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: IFBWasherCoordinator) -> None:
+        """Initialize the dry mode selector."""
+        super().__init__(coordinator)
+        self.entity_description = SelectEntityDescription(
+            key="dry_mode_select",
+            translation_key="dry_mode_select",
+            icon="mdi:tumble-dryer",
+        )
+        self._attr_unique_id = f"{coordinator.client.host}_dry_mode_select"
+        self._attr_device_info = coordinator.device_info
+        self._attr_options = list(DRY_OPTIONS.values())
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current drying mode."""
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.dry_mode_name
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the drying mode."""
+        code = DRY_NAME_TO_CODE.get(option)
+        if code is None:
+            _LOGGER.warning("Unknown dry mode selected: %s", option)
+            return
+
+        try:
+            updated_state = await self.coordinator.client.set_dry_mode(code)
+            self.coordinator.async_set_updated_data(updated_state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error setting dry mode '{option}': {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error setting dry mode '{option}': {err}") from err
+

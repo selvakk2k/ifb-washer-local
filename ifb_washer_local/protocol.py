@@ -28,6 +28,8 @@ from .const import (
     TELEMETRY_SIGNATURES,
     TEMPERATURE_OPTIONS,
     ERROR_CODES,
+    DRY_OPTIONS,
+    EXTRA_RINSE_OPTIONS,
 )
 from .exceptions import IFBProtocolError
 
@@ -148,6 +150,21 @@ class WasherState:
     is_powered_on: bool = True
     error_code: str = ""
     error_description: str = ""
+    extra_rinse: int = 0
+    extra_rinse_name: str = "0 (None)"
+    dry_mode_code: int = 0
+    dry_mode_name: str = "Off"
+    prewash: bool = False
+    soak: bool = False
+    rinse_hold: bool = False
+    time_saver: bool = False
+    hot_rinse: bool = False
+    eco: bool = False
+    steam: bool = False
+    aroma: bool = False
+    anti_crease: bool = False
+    rapid_wash: bool = False
+    warm_soak: bool = False
 
     @property
     def is_delay_start(self) -> bool:
@@ -400,6 +417,33 @@ def parse_status_frame(
         ):
             error_code, error_desc = ERROR_CODES[1]
 
+    # Extra Rinse count (byte 9)
+    extra_rinse_count = data[9] if len(data) > 9 else 0
+    extra_rinse_name = EXTRA_RINSE_OPTIONS.get(extra_rinse_count, f"{extra_rinse_count} Rinses")
+
+    # Options register 2 (byte 11): bit 0=soil age, bit 1=favorite, bit 2=rinse hold,
+    # bit 3=anti-crease, bit 6=aroma, bit 9=steam (or machine in Steam state)
+    opt2 = data[11] if len(data) > 11 else 0
+    rinse_hold = bool((opt2 >> 2) & 1)
+    anti_crease = bool((opt2 >> 3) & 1)
+    aroma = bool((opt2 >> 6) & 1)
+    steam = bool(((opt2 >> 9) & 1) or state_code == MachineState.STEAM)
+
+    # Dry Mode Option (byte 28)
+    dry_code = data[28] if len(data) > 28 else 0
+    dry_name = DRY_OPTIONS.get(dry_code, f"Mode {dry_code}")
+
+    # Enabled Options 1 (byte 29): bit 0=pre-wash, bit 1=soak, bit 2=warm soak,
+    # bit 3=hot rinse, bit 4=time saver, bit 6=eco, bit 7=rapid wash
+    opt_enable1 = data[29] if len(data) > 29 else 0
+    prewash = bool((opt_enable1 >> 0) & 1)
+    soak = bool((opt_enable1 >> 1) & 1)
+    warm_soak = bool((opt_enable1 >> 2) & 1)
+    hot_rinse = bool((opt_enable1 >> 3) & 1)
+    time_saver = bool((opt_enable1 >> 4) & 1)
+    eco = bool((opt_enable1 >> 6) & 1)
+    rapid_wash = bool((opt_enable1 >> 7) & 1)
+
     return WasherState(
         program_code=prog_id,
         program_name=prog_name,
@@ -423,5 +467,20 @@ def parse_status_frame(
         is_powered_on=is_powered_on,
         error_code=error_code,
         error_description=error_desc,
+        extra_rinse=extra_rinse_count,
+        extra_rinse_name=extra_rinse_name,
+        dry_mode_code=dry_code,
+        dry_mode_name=dry_name,
+        prewash=prewash,
+        soak=soak,
+        rinse_hold=rinse_hold,
+        time_saver=time_saver,
+        hot_rinse=hot_rinse,
+        eco=eco,
+        steam=steam,
+        aroma=aroma,
+        anti_crease=anti_crease,
+        rapid_wash=rapid_wash,
+        warm_soak=warm_soak,
     )
 

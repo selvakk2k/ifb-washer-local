@@ -24,11 +24,23 @@ FIXED_CMD_POWER_OFF = 0x12
 
 # Hardware Interface Layer (HIL) Option Identifiers (Type 0x02)
 HIL_OPTION_TEMP = 3
+HIL_OPTION_RAPID_WASH = 4
 HIL_OPTION_SPIN = 5
+HIL_OPTION_PRE_WASH = 6
 HIL_OPTION_EXTRA_RINSE = 7
+HIL_OPTION_RINSE_HOLD = 8
 HIL_OPTION_DELAY = 9
 HIL_OPTION_SOAK = 10
 HIL_OPTION_CHILD_LOCK = 11
+HIL_OPTION_HOT_RINSE = 12
+HIL_OPTION_TIME_SAVER = 13
+HIL_OPTION_ECO = 14
+HIL_OPTION_SOIL_AGE = 15
+HIL_OPTION_ANTI_CREASE = 16
+HIL_OPTION_DRY = 18
+HIL_OPTION_STEAM = 19
+HIL_OPTION_AROMA = 21
+HIL_OPTION_WARM_SOAK = 22
 
 
 class MachineState(IntEnum):
@@ -360,5 +372,33 @@ DELAY_START_OPTIONS: dict[int, str] = {
 
 DELAY_START_NAME_TO_CODE: dict[str, int] = {
     name: code for code, name in DELAY_START_OPTIONS.items()
+}
+
+# Extra Rinse Options (Option ID 7)
+# Hardware command values: 0 = 0 (None), 1 = +1 Rinse, 2 = +2 Rinses, 3 = +3 Rinses
+EXTRA_RINSE_OPTIONS: dict[int, str] = {
+    0: "0 (None)",
+    1: "+1 Rinse",
+    2: "+2 Rinses",
+    3: "+3 Rinses",
+}
+
+EXTRA_RINSE_NAME_TO_CODE: dict[str, int] = {
+    name: code for code, name in EXTRA_RINSE_OPTIONS.items()
+}
+
+# Dry Mode Options (Option ID 18)
+# Hardware command values from IFB Washer Dryer catalog
+DRY_OPTIONS: dict[int, str] = {
+    0: "Off",
+    1: "Cupboard Dry",
+    2: "Iron Dry",
+    3: "Eco Dry",
+    4: "Gentle Dry",
+    5: "Time Dry",
+}
+
+DRY_NAME_TO_CODE: dict[str, int] = {
+    name: code for code, name in DRY_OPTIONS.items()
 }
 

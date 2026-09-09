@@ -17,9 +17,20 @@ from .const import (
     FIXED_CMD_POWER_ON,
     FIXED_CMD_POWER_OFF,
     GAINSPAN_PROFILE_ENDPOINT,
-    HIL_OPTION_SPIN,
-    HIL_OPTION_TEMP,
+    HIL_OPTION_ANTI_CREASE,
+    HIL_OPTION_AROMA,
     HIL_OPTION_DELAY,
+    HIL_OPTION_DRY,
+    HIL_OPTION_ECO,
+    HIL_OPTION_EXTRA_RINSE,
+    HIL_OPTION_HOT_RINSE,
+    HIL_OPTION_PRE_WASH,
+    HIL_OPTION_RINSE_HOLD,
+    HIL_OPTION_SOAK,
+    HIL_OPTION_SPIN,
+    HIL_OPTION_STEAM,
+    HIL_OPTION_TEMP,
+    HIL_OPTION_TIME_SAVER,
 )
 from .exceptions import (
     IFBConnectionError,
@@ -164,6 +175,72 @@ class IFBWasherClient:
             if abs(state.delay_start_minutes - expected_mins) <= 2:
                 return state
         return state
+
+    async def set_extra_rinse(self, count: int) -> WasherState:
+        """Set the extra rinse count (0 to 3)."""
+        cmd_pkt = build_user_option_command(HIL_OPTION_EXTRA_RINSE, count)
+        await self._send_raw_command(cmd_pkt)
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            state = await self.get_state()
+            if state.extra_rinse == count:
+                return state
+        return state
+
+    async def set_dry_mode(self, dry_code: int) -> WasherState:
+        """Set the dryer mode option code (0 for Off, 1 for Cupboard Dry, etc.)."""
+        cmd_pkt = build_user_option_command(HIL_OPTION_DRY, dry_code)
+        await self._send_raw_command(cmd_pkt)
+        for _ in range(4):
+            await asyncio.sleep(0.3)
+            state = await self.get_state()
+            if state.dry_mode_code == dry_code:
+                return state
+        return state
+
+    async def set_feature_toggle(self, hil_id: int, enable: bool) -> WasherState:
+        """Toggle an operational modifier feature on or off."""
+        val = 1 if enable else 0
+        cmd_pkt = build_user_option_command(hil_id, val)
+        await self._send_raw_command(cmd_pkt)
+        await asyncio.sleep(0.4)
+        return await self.get_state()
+
+    async def set_prewash(self, enable: bool) -> WasherState:
+        """Enable or disable pre-wash."""
+        return await self.set_feature_toggle(HIL_OPTION_PRE_WASH, enable)
+
+    async def set_soak(self, enable: bool) -> WasherState:
+        """Enable or disable soak."""
+        return await self.set_feature_toggle(HIL_OPTION_SOAK, enable)
+
+    async def set_rinse_hold(self, enable: bool) -> WasherState:
+        """Enable or disable rinse hold."""
+        return await self.set_feature_toggle(HIL_OPTION_RINSE_HOLD, enable)
+
+    async def set_time_saver(self, enable: bool) -> WasherState:
+        """Enable or disable time saver."""
+        return await self.set_feature_toggle(HIL_OPTION_TIME_SAVER, enable)
+
+    async def set_hot_rinse(self, enable: bool) -> WasherState:
+        """Enable or disable hot rinse."""
+        return await self.set_feature_toggle(HIL_OPTION_HOT_RINSE, enable)
+
+    async def set_eco(self, enable: bool) -> WasherState:
+        """Enable or disable eco mode."""
+        return await self.set_feature_toggle(HIL_OPTION_ECO, enable)
+
+    async def set_steam(self, enable: bool) -> WasherState:
+        """Enable or disable steam."""
+        return await self.set_feature_toggle(HIL_OPTION_STEAM, enable)
+
+    async def set_aroma(self, enable: bool) -> WasherState:
+        """Enable or disable aroma."""
+        return await self.set_feature_toggle(HIL_OPTION_AROMA, enable)
+
+    async def set_anti_crease(self, enable: bool) -> WasherState:
+        """Enable or disable anti-crease."""
+        return await self.set_feature_toggle(HIL_OPTION_ANTI_CREASE, enable)
 
     async def start(self) -> WasherState:
         """Start or resume the selected wash cycle."""

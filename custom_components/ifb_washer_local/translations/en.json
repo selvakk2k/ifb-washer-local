@@ -154,6 +154,12 @@
       },
       "delay_start_select": {
         "name": "Delay Start"
+      },
+      "extra_rinse_select": {
+        "name": "Extra Rinse"
+      },
+      "dry_mode_select": {
+        "name": "Dry Mode"
       }
     },
     "button": {
@@ -173,6 +179,33 @@
       },
       "child_lock_switch": {
         "name": "Child Lock"
+      },
+      "prewash": {
+        "name": "Pre-wash"
+      },
+      "soak": {
+        "name": "Soak"
+      },
+      "rinse_hold": {
+        "name": "Rinse Hold"
+      },
+      "time_saver": {
+        "name": "Time Saver"
+      },
+      "hot_rinse": {
+        "name": "Hot Rinse"
+      },
+      "eco": {
+        "name": "Eco Mode"
+      },
+      "steam": {
+        "name": "Steam"
+      },
+      "aroma": {
+        "name": "Aroma"
+      },
+      "anti_crease": {
+        "name": "Anti-crease"
       }
     }
   }
