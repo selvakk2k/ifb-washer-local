@@ -314,7 +314,21 @@ class IFBWasherExtraRinseSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
         )
         self._attr_unique_id = f"{coordinator.client.host}_extra_rinse_select"
         self._attr_device_info = coordinator.device_info
-        self._attr_options = list(EXTRA_RINSE_OPTIONS.values())
+
+    @property
+    def options(self) -> list[str]:
+        """Return the allowed extra rinse options for the active program."""
+        caps = _get_capabilities_for_coordinator(self.coordinator)
+        if caps and not getattr(caps, "supports_extra_rinse", True):
+            return ["0 (None)"]
+        max_rinses = getattr(caps, "max_extra_rinses", 3)
+        if max_rinses == 2:
+            return ["0 (None)", "+1 Rinse", "+2 Rinses"]
+        elif max_rinses == 1:
+            return ["0 (None)", "+1 Rinse"]
+        elif max_rinses == 0:
+            return ["0 (None)"]
+        return list(EXTRA_RINSE_OPTIONS.values())
 
     @property
     def current_option(self) -> str | None:
