@@ -56,6 +56,29 @@ SPIN_NAME_TO_CODE = {name: code for code, name in SPIN_SPEED_OPTIONS.items()}
 TEMP_NAME_TO_CODE = {name: code for code, name in TEMPERATURE_OPTIONS.items()}
 
 
+def _get_capabilities_for_coordinator(coord: IFBWasherCoordinator):
+    """Resolve active program capabilities using ifb_washer_models with resilient fallback."""
+    if coord.data is None:
+        return None
+    try:
+        try:
+            from ifb_washer_models import get_lookup
+        except ImportError:
+            from .ifb_washer_models import get_lookup
+        lookup = get_lookup()
+        manual_code = getattr(coord, "manual_code", "MAN_742_E")
+        prog_name = coord.data.program_name or str(coord.data.program_code)
+        caps = lookup.get_program_capabilities(manual_code, prog_name)
+        if caps:
+            return caps
+    except Exception:
+        pass
+    try:
+        from .ifb_washer_local.const import get_program_capabilities
+    except ImportError:
+        from ifb_washer_local.const import get_program_capabilities
+    return get_program_capabilities(coord.data.program_code)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -120,7 +143,6 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
         _LOGGER.warning("Unknown program option selected: %s", option)
 
 
-
 class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
     """Selector entity for choosing spin speeds."""
 
@@ -136,7 +158,14 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
         )
         self._attr_unique_id = f"{coordinator.client.host}_spin_speed_select"
         self._attr_device_info = coordinator.device_info
-        self._attr_options = list(SPIN_SPEED_OPTIONS.values())
+
+    @property
+    def options(self) -> list[str]:
+        """Return the allowed spin speed options for the active program."""
+        caps = _get_capabilities_for_coordinator(self.coordinator)
+        if caps and caps.allowed_spins:
+            return list(caps.allowed_spins)
+        return list(SPIN_SPEED_OPTIONS.values())
 
     @property
     def current_option(self) -> str | None:
@@ -177,7 +206,14 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
         )
         self._attr_unique_id = f"{coordinator.client.host}_temperature_select"
         self._attr_device_info = coordinator.device_info
-        self._attr_options = list(TEMPERATURE_OPTIONS.values())
+
+    @property
+    def options(self) -> list[str]:
+        """Return the allowed temperature options for the active program."""
+        caps = _get_capabilities_for_coordinator(self.coordinator)
+        if caps and caps.allowed_temps:
+            return list(caps.allowed_temps)
+        return list(TEMPERATURE_OPTIONS.values())
 
     @property
     def current_option(self) -> str | None:
@@ -185,6 +221,7 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
         if self.coordinator.data is None:
             return None
         return self.coordinator.data.temperature_name
+
 
     async def async_select_option(self, option: str) -> None:
         """Change the temperature."""
@@ -311,15 +348,11 @@ class IFBWasherDryModeSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
     @property
     def options(self) -> list[str]:
         """Return the available drying mode options for current program."""
-        if self.coordinator.data is not None:
-            try:
-                from .ifb_washer_local.const import get_program_capabilities
-            except ImportError:
-                from ifb_washer_local.const import get_program_capabilities
-            caps = get_program_capabilities(self.coordinator.data.program_code)
-            if caps and caps.allowed_dry_modes:
-                return list(caps.allowed_dry_modes)
+        caps = _get_capabilities_for_coordinator(self.coordinator)
+        if caps and caps.allowed_dry_modes:
+            return list(caps.allowed_dry_modes)
         return list(DRY_OPTIONS.values())
+
 
     @property
     def current_option(self) -> str | None:
