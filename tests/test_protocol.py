@@ -97,11 +97,13 @@ def test_parse_real_cotton_telemetry():
 
 def test_program_selection_packet():
     """Verify program selection packet building."""
-    pkt = build_program_selection(13, spin_rpm=1000, temp_c=40)
+    pkt = build_program_selection(13, spin_code=6, temp_code=4)
     assert len(pkt) == 21
     assert pkt[0] == 0x63
     assert pkt[2] == 0x03
     assert pkt[5] == 13
+    assert pkt[7] == 6
+    assert pkt[9] == 4
     c1, c2 = compute_checksums(pkt[:-2])
     assert pkt[-2] == c1
     assert pkt[-1] == c2

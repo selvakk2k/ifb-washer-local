@@ -70,24 +70,29 @@ def build_fixed_command(cmd_code: int) -> bytes:
     return bytes(pkt)
 
 
-def build_program_selection(program_code: int, spin_rpm: int = 1000, temp_c: int = 40) -> bytes:
-    """Build the 21-byte program selection packet."""
+def build_program_selection(
+    program_code: int,
+    spin_code: int = 6,
+    temp_code: int = 4,
+    child_lock: bool = False,
+) -> bytes:
+    """Build the 21-byte program selection packet with discrete hardware option codes."""
     pkt = [
         FRAME_HEADER,
         0x13,
         CMD_TYPE_PROGRAM_SELECT,
         0x00,
-        0x01,
+        0x00,
         program_code & 0xFF,
         0x00,
-        (spin_rpm >> 8) & 0xFF,
-        spin_rpm & 0xFF,
-        temp_c & 0xFF,
+        spin_code & 0xFF,
+        0x00,
+        temp_code & 0xFF,
         0x00,
         0x00,
         0x00,
-        0x0A,
-        0x01,
+        0x00,
+        1 if child_lock else 0,
         0x00,
         0x00,
         0x00,
