@@ -146,6 +146,9 @@ PROGRAM_CODES_WASHER_DRYER: dict[int, str] = {
     13: "Mix / Daily",
     14: "Express 15'",
     15: "Tub Clean",
+    # App-Exclusive Programs for Hardware Testing & LAN Control
+    16: "Spin Dry / Drain",
+    17: "Rinse + Spin",
 }
 
 # Alias for backwards compatibility
@@ -245,7 +248,7 @@ MODELS_BY_FAMILY: dict[str, list[str]] = {
 DIAL_SIDES_BY_FAMILY: dict[str, tuple[list[int], list[int]]] = {
     ApplianceFamily.WASHER_DRYER: (
         [1, 2, 3, 4, 5, 6, 7],
-        [8, 9, 10, 11, 12, 13, 14, 15],
+        [8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
     ),
     ApplianceFamily.FRONT_LOAD: (
         [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
@@ -391,17 +394,31 @@ EXTRA_RINSE_NAME_TO_CODE: dict[str, int] = {
 # Dry Mode Options (Option ID 18)
 # Hardware command values from IFB Washer Dryer catalog
 DRY_OPTIONS: dict[int, str] = {
-    0: "Off",
+    0: "No Dry",
     1: "Cupboard Dry",
     2: "Iron Dry",
     3: "Eco Dry",
     4: "Gentle Dry",
     5: "Time Dry",
+    6: "Cradle Dry",
+    7: "30 Minutes",
+    8: "1 Hour",
+    9: "1 Hour 30 Minutes",
+    10: "2 Hours",
+    11: "2 Hours 30 Minutes",
+    12: "3 Hours",
+    13: "3 Hours 30 Minutes",
+    14: "4 Hours",
+    15: "4 Hours 30 Minutes",
+    16: "5 Hours",
+    17: "6 Hours",
 }
 
 DRY_NAME_TO_CODE: dict[str, int] = {
     name: code for code, name in DRY_OPTIONS.items()
 }
+# Backward compatibility alias
+DRY_NAME_TO_CODE["Off"] = 0
 
 
 @dataclass(frozen=True)
@@ -411,6 +428,7 @@ class ProgramCapabilities:
     allowed_temps: tuple[str, ...]
     allowed_spins: tuple[str, ...]
     supports_dry: bool = False
+    allowed_dry_modes: tuple[str, ...] = ("No Dry",)
     supports_steam: bool = True
     supports_prewash: bool = True
     supports_soak: bool = True
@@ -428,6 +446,7 @@ class ProgramCapabilities:
             "allowed_temps": list(self.allowed_temps),
             "allowed_spins": list(self.allowed_spins),
             "supports_dry": self.supports_dry,
+            "allowed_dry_modes": list(self.allowed_dry_modes),
             "supports_steam": self.supports_steam,
             "supports_prewash": self.supports_prewash,
             "supports_soak": self.supports_soak,
@@ -447,6 +466,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
         supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours"),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
@@ -455,6 +475,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
         supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours", "3 Hours 30 Minutes", "4 Hours", "4 Hours 30 Minutes", "5 Hours", "6 Hours"),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
@@ -463,6 +484,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
         supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Gentle Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours"),
         supports_steam=True,
         supports_prewash=False,
         supports_soak=False,
@@ -471,6 +493,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold",),
         allowed_spins=("No Spin",),
         supports_dry=False,
+        allowed_dry_modes=("No Dry",),
         supports_steam=True,
         supports_prewash=False,
         supports_soak=False,
@@ -483,12 +506,14 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
         supports_dry=False,
+        allowed_dry_modes=("No Dry",),
         supports_steam=True,
     ),
     6: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cradle Dry", "Gentle Dry", "30 Minutes", "1 Hour"),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
@@ -497,7 +522,8 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
     7: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Gentle Dry", "30 Minutes", "1 Hour"),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
@@ -506,39 +532,46 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
     8: ProgramCapabilities(
         allowed_temps=("Cold", "40°C", "60°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours", "4 Hours"),
     ),
     9: ProgramCapabilities(
         allowed_temps=("Cold", "40°C", "60°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours"),
         supports_steam=True,
     ),
     10: ProgramCapabilities(
         allowed_temps=("40°C", "60°C", "95°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours"),
         supports_steam=True,
     ),
     11: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C", "60°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Gentle Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours"),
     ),
     12: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C", "60°C", "95°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours", "3 Hours 30 Minutes", "4 Hours"),
     ),
     13: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C", "60°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
-        supports_dry=False,
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours"),
     ),
     14: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
         supports_dry=False,
+        allowed_dry_modes=("No Dry",),
         supports_prewash=False,
         supports_soak=False,
         supports_time_saver=False,
@@ -547,6 +580,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_temps=("Cold", "60°C", "95°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
         supports_dry=False,
+        allowed_dry_modes=("No Dry",),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
@@ -558,12 +592,45 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         supports_aroma=False,
         supports_anti_crease=False,
     ),
+    16: ProgramCapabilities(
+        allowed_temps=("Cold",),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=False,
+        allowed_dry_modes=("No Dry",),
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+        supports_extra_rinse=False,
+        supports_hot_rinse=False,
+        supports_rinse_hold=False,
+        supports_eco=False,
+        supports_aroma=False,
+        supports_anti_crease=True,
+    ),
+    17: ProgramCapabilities(
+        allowed_temps=("Cold",),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=False,
+        allowed_dry_modes=("No Dry",),
+        supports_steam=False,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
+        supports_extra_rinse=True,
+        supports_hot_rinse=False,
+        supports_rinse_hold=True,
+        supports_eco=False,
+        supports_aroma=True,
+        supports_anti_crease=True,
+    ),
 }
 
 DEFAULT_PROGRAM_CAPABILITIES = ProgramCapabilities(
     allowed_temps=("Cold", "30°C", "40°C", "60°C", "95°C"),
     allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
     supports_dry=True,
+    allowed_dry_modes=tuple(DRY_OPTIONS.values()),
     supports_steam=True,
     supports_prewash=True,
     supports_soak=True,
@@ -580,5 +647,3 @@ DEFAULT_PROGRAM_CAPABILITIES = ProgramCapabilities(
 def get_program_capabilities(program_code: int) -> ProgramCapabilities:
     """Return program option capabilities for a given program code."""
     return PROGRAM_CAPABILITIES_WASHER_DRYER.get(program_code, DEFAULT_PROGRAM_CAPABILITIES)
-
-

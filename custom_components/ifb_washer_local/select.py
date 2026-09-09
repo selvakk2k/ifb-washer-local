@@ -309,6 +309,19 @@ class IFBWasherDryModeSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
         self._attr_options = list(DRY_OPTIONS.values())
 
     @property
+    def options(self) -> list[str]:
+        """Return the available drying mode options for current program."""
+        if self.coordinator.data is not None:
+            try:
+                from .ifb_washer_local.const import get_program_capabilities
+            except ImportError:
+                from ifb_washer_local.const import get_program_capabilities
+            caps = get_program_capabilities(self.coordinator.data.program_code)
+            if caps and caps.allowed_dry_modes:
+                return list(caps.allowed_dry_modes)
+        return list(DRY_OPTIONS.values())
+
+    @property
     def current_option(self) -> str | None:
         """Return the current drying mode."""
         if self.coordinator.data is None:

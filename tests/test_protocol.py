@@ -107,21 +107,23 @@ def test_program_selection_packet():
     assert pkt[-1] == c2
 
 
-def test_verified_15_programs_mapping():
-    """Verify the 15 hardware-verified dial program codes."""
+def test_verified_programs_mapping():
+    """Verify the hardware-verified dial program codes including hidden cycles."""
     from ifb_washer_local.const import (
         PROGRAM_CODES_742,
         PROGRAM_CODES_WASHER_DRYER,
     )
 
     assert PROGRAM_CODES_WASHER_DRYER == PROGRAM_CODES_742
-    assert len(PROGRAM_CODES_WASHER_DRYER) == 15
+    assert len(PROGRAM_CODES_WASHER_DRYER) == 17
     assert PROGRAM_CODES_WASHER_DRYER[1] == "Wash + Dry 2Hr"
     assert PROGRAM_CODES_WASHER_DRYER[2] == "Wash + Dry 4Hr"
     assert PROGRAM_CODES_WASHER_DRYER[12] == "Cotton"
     assert PROGRAM_CODES_WASHER_DRYER[13] == "Mix / Daily"
     assert PROGRAM_CODES_WASHER_DRYER[14] == "Express 15'"
     assert PROGRAM_CODES_WASHER_DRYER[15] == "Tub Clean"
+    assert PROGRAM_CODES_WASHER_DRYER[16] == "Spin Dry / Drain"
+    assert PROGRAM_CODES_WASHER_DRYER[17] == "Rinse + Spin"
 
 
 def test_family_program_matrices():
@@ -372,19 +374,28 @@ def test_program_capabilities_wash_guide_map():
     assert refresh_caps.supports_dry is False
     assert refresh_caps.supports_steam is True
 
-    # CradleWash (6): Gentle wash, max 600 RPM, max 40°C, no dry
+    # CradleWash (6): Gentle wash, max 600 RPM, max 40°C, gentle/cradle dry
     cradle_caps = get_program_capabilities(6)
     assert cradle_caps.allowed_spins == ("No Spin", "400 RPM", "600 RPM")
     assert "95°C" not in cradle_caps.allowed_temps
-    assert cradle_caps.supports_dry is False
+    assert cradle_caps.supports_dry is True
+    assert "Cradle Dry" in cradle_caps.allowed_dry_modes
 
     # Wash + Dry 2Hr (1): Supports dry
     wd_caps = get_program_capabilities(1)
     assert wd_caps.supports_dry is True
     assert wd_caps.supports_prewash is False
+    assert "Cupboard Dry" in wd_caps.allowed_dry_modes
 
-    # Cotton (12): Supports all temps and spins up to 1400 RPM
+    # Cotton (12): Supports all temps and spins up to 1400 RPM, allows dry
     cotton_caps = get_program_capabilities(12)
     assert "95°C" in cotton_caps.allowed_temps
     assert "1400 RPM" in cotton_caps.allowed_spins
-    assert cotton_caps.supports_dry is False
+    assert cotton_caps.supports_dry is True
+    assert "4 Hours" in cotton_caps.allowed_dry_modes
+
+    # Spin Dry / Drain (16): Spin only
+    spin_caps = get_program_capabilities(16)
+    assert spin_caps.allowed_temps == ("Cold",)
+    assert spin_caps.supports_dry is False
+    assert spin_caps.supports_anti_crease is True

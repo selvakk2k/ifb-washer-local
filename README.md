@@ -9,6 +9,8 @@ Zero-cloud, 100% local Home Assistant integration and standalone Python library 
 
 Directly communicates with the internal Wi-Fi module on port 80 over your local home network without requiring cloud accounts, mobile apps, SMS OTPs, or active internet connectivity.
 
+---
+
 ## Table of Contents
 * [Features](#features)
 * [Hardware Compatibility](#hardware-compatibility)
@@ -18,6 +20,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
   * [Option 2: Manual Installation](#option-2-manual-installation)
 * [Configuration](#configuration)
 * [Entities Provided](#entities-provided)
+* [Operation & Wash Guide](docs/WASH_GUIDE.md)
 * [Python Library Usage](#python-library-usage)
 * [Credits & License](#credits--license)
 
@@ -131,6 +134,12 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 * **Start Button**: Start or resume wash program (`button.start`).
 * **Pause Button**: Pause running wash program (`button.pause`).
 * **Cancel Button**: Terminate the current cycle (`button.cancel`).
+
+---
+
+## Operation & Wash Guide
+
+For a complete reference on all available programs (including Express 15', Refresh, and Spin Dry / Drain), allowed temperatures, spin speeds, drying modes, and cycle modifiers, see the [Operation & Wash Guide](docs/WASH_GUIDE.md).
 
 ---
 
