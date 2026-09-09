@@ -24,7 +24,18 @@ try:
         IFBTimeoutError,
         IFBWasherClient,
         PROGRAM_CODES_WASHER_DRYER,
+        ProgramCapabilities,
         WasherState,
+        calibrate_appliance_detailed,
+        calibrate_appliance_quick,
+        deserialize_capabilities_map,
+        serialize_capabilities_map,
+    )
+    from .ifb_washer_local.const import (
+        PROGRAM_CAPABILITIES_FRONT_LOAD,
+        PROGRAM_CAPABILITIES_TOP_LOAD,
+        PROGRAM_CAPABILITIES_WASHER_DRYER,
+        get_program_capabilities as get_default_capabilities,
     )
 except (ImportError, ValueError):
     from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
@@ -35,10 +46,22 @@ except (ImportError, ValueError):
         IFBTimeoutError,
         IFBWasherClient,
         PROGRAM_CODES_WASHER_DRYER,
+        ProgramCapabilities,
         WasherState,
+        calibrate_appliance_detailed,
+        calibrate_appliance_quick,
+        deserialize_capabilities_map,
+        serialize_capabilities_map,
+    )
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        PROGRAM_CAPABILITIES_FRONT_LOAD,
+        PROGRAM_CAPABILITIES_TOP_LOAD,
+        PROGRAM_CAPABILITIES_WASHER_DRYER,
+        get_program_capabilities as get_default_capabilities,
     )
 
 from .const import (
+    CONF_CALIBRATED_PROFILE,
     CONF_CUSTOM_MODEL,
     CONF_CUSTOM_PROGRAMS,
     CONF_FAMILY,
@@ -81,6 +104,7 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         self.entry = entry
         self._current_interval = standby_interval
         self._initial_cycle_duration: int = 0
+        self._is_calibrating: bool = False
 
         # Determine configured appliance family and program matrix
         self.appliance_family = (
@@ -97,6 +121,20 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             )
 
         self.client.program_map = self.program_map
+
+        # Load persisted calibration profile if available
+        self.calibrated_caps: dict[int, ProgramCapabilities] = {}
+        if entry:
+            options_dict = entry.options if isinstance(getattr(entry, "options", None), dict) else {}
+            data_dict = entry.data if isinstance(getattr(entry, "data", None), dict) else {}
+            cal_data = options_dict.get(CONF_CALIBRATED_PROFILE) or data_dict.get(CONF_CALIBRATED_PROFILE)
+            if cal_data and isinstance(cal_data, dict):
+                self.calibrated_caps = deserialize_capabilities_map(cal_data)
+                _LOGGER.info(
+                    "Loaded custom calibrated profile for IFB Washer (%d programs calibrated)",
+                    len(self.calibrated_caps),
+                )
+
 
     @property
     def initial_cycle_duration(self) -> int:
@@ -214,4 +252,107 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             ) from err
         except IFBError as err:
             raise UpdateFailed(f"Protocol error querying IFB washer: {err}") from err
+
+    def get_program_capabilities(
+        self, program_code: int | None = None
+    ) -> ProgramCapabilities | None:
+        """Resolve capabilities for a program code using calibrated profile or catalog defaults."""
+        if program_code is None:
+            if self.data is None:
+                return None
+            program_code = self.data.program_code
+
+        # 1. First priority: Exact calibrated capabilities from physical machine probing
+        if program_code in self.calibrated_caps:
+            return self.calibrated_caps[program_code]
+
+        # 2. Second priority: ifb_washer_models catalog lookup
+        try:
+            try:
+                from ifb_washer_models import get_lookup
+            except ImportError:
+                from .ifb_washer_models import get_lookup
+            lookup = get_lookup()
+            manual_code = getattr(self, "manual_code", "MAN_742_E")
+            prog_name = self.program_map.get(program_code, str(program_code))
+            caps = lookup.get_program_capabilities(manual_code, prog_name)
+            if caps:
+                return caps
+        except Exception:
+            pass
+
+        # 3. Third priority: Static family tables or generic fallback
+        if self.appliance_family == ApplianceFamily.FRONT_LOAD:
+            return PROGRAM_CAPABILITIES_FRONT_LOAD.get(
+                program_code, get_default_capabilities(program_code)
+            )
+        if self.appliance_family == ApplianceFamily.TOP_LOAD_SMART:
+            return PROGRAM_CAPABILITIES_TOP_LOAD.get(
+                program_code, get_default_capabilities(program_code)
+            )
+        return PROGRAM_CAPABILITIES_WASHER_DRYER.get(
+            program_code, get_default_capabilities(program_code)
+        )
+
+    async def async_calibrate(
+        self, mode: str = "quick"
+    ) -> dict[int, ProgramCapabilities]:
+        """Run online hardware capability calibration against the physical appliance."""
+        if self._is_calibrating:
+            _LOGGER.warning("Calibration is already in progress for %s", self.client.host)
+            return self.calibrated_caps
+
+        # Check if appliance is busy
+        if self.data and (self.data.is_running or self.data.is_paused):
+            raise UpdateFailed("Cannot run calibration while a wash cycle is active")
+
+        self._is_calibrating = True
+        _LOGGER.info(
+            "Starting %s hardware capability calibration for IFB washer at %s",
+            mode,
+            self.client.host,
+        )
+        is_wd = self.appliance_family in (ApplianceFamily.WASHER_DRYER, "washer_dryer")
+
+        if self.appliance_family == ApplianceFamily.FRONT_LOAD:
+            base_map = PROGRAM_CAPABILITIES_FRONT_LOAD
+        elif self.appliance_family == ApplianceFamily.TOP_LOAD_SMART:
+            base_map = PROGRAM_CAPABILITIES_TOP_LOAD
+        else:
+            base_map = PROGRAM_CAPABILITIES_WASHER_DRYER
+
+        try:
+            if mode == "detailed":
+                new_caps = await calibrate_appliance_detailed(
+                    self.client,
+                    self.program_map,
+                    base_map,
+                    is_washer_dryer=is_wd,
+                )
+            else:
+                new_caps = await calibrate_appliance_quick(
+                    self.client,
+                    self.program_map,
+                    base_map,
+                    is_washer_dryer=is_wd,
+                )
+            self.calibrated_caps = new_caps
+
+            # Persist to config entry data
+            if self.entry:
+                serialized = serialize_capabilities_map(new_caps)
+                new_data = dict(self.entry.data)
+                new_data[CONF_CALIBRATED_PROFILE] = serialized
+                self.hass.config_entries.async_update_entry(self.entry, data=new_data)
+
+            _LOGGER.info(
+                "Hardware calibration completed successfully for %s (%d programs mapped)",
+                self.client.host,
+                len(new_caps),
+            )
+            await self.async_request_refresh()
+            return new_caps
+        finally:
+            self._is_calibrating = False
+
 

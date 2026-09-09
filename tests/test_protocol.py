@@ -370,6 +370,16 @@ def test_build_feature_option_commands():
     assert pkt_prewash[-2] == c1
     assert pkt_prewash[-1] == c2
 
+    # Spin speed = 7 (1200 RPM) -> 16-bit word layout: pkt[4]=5, pkt[5]=0, pkt[6]=7
+    pkt_spin = build_user_option_command(HIL_OPTION_SPIN, 7)
+    assert len(pkt_spin) == 9
+    assert pkt_spin[4] == HIL_OPTION_SPIN
+    assert pkt_spin[5] == 0
+    assert pkt_spin[6] == 7
+    c1, c2 = compute_checksums(pkt_spin[:-2])
+    assert pkt_spin[-2] == c1
+    assert pkt_spin[-1] == c2
+
 def test_program_capabilities_wash_guide_map():
     """Verify Wash Guide Map capabilities for various programs."""
     from ifb_washer_local.const import get_program_capabilities

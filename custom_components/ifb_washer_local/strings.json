@@ -56,8 +56,17 @@
         "title": "Step 3: Opposite-Side Test",
         "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the opposite program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
-          "finish_verification": "Display Matches (Finish Setup)",
+          "finish_verification": "Display Matches (Continue to Calibration)",
           "skip_verification": "Skip Verification"
+        }
+      },
+      "calibrate": {
+        "title": "Would you like to calibrate your device?",
+        "description": "Calibration sends safe test commands to probe your machine's exact physical capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, and dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use pre-calibrated catalog settings.\n- **Quick Test (~20-30s)**: Fast probe on core daily programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Test (~1.5-2m)**: Full probe across all programs on the dial.",
+        "menu_options": {
+          "calibrate_standard": "Standard (Skip live test)",
+          "calibrate_quick": "Quick Test (~20-30s)",
+          "calibrate_detailed": "Detailed Test (~1.5-2m)"
         }
       },
       "custom": {
@@ -78,16 +87,18 @@
     "step": {
       "init": {
         "title": "IFB Washer Local Options",
-        "description": "Adjust operational scan intervals and model information:",
+        "description": "Adjust operational scan intervals and model settings:",
         "data": {
           "model": "Appliance Model Name",
           "scan_interval_standby": "Standby Polling Interval",
-          "scan_interval_running": "Active Wash Polling Interval"
+          "scan_interval_running": "Active Wash Polling Interval",
+          "calibration_action": "Hardware Capability Calibration"
         },
         "data_description": {
           "model": "Display model name shown in Home Assistant device registry.",
           "scan_interval_standby": "Polling interval in seconds while the washer is idle or in standby (default: 15s).",
-          "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s)."
+          "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s).",
+          "calibration_action": "Select to run online capability calibration against your machine or reset to defaults."
         }
       }
     }

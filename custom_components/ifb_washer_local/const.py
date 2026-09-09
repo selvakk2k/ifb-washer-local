@@ -16,6 +16,8 @@ CONF_FAMILY = "family"
 CONF_MODEL = "model"
 CONF_CUSTOM_MODEL = "custom_model"
 CONF_CUSTOM_PROGRAMS = "custom_programs"
+CONF_CALIBRATED_PROFILE = "calibrated_profile"
+
 
 DEFAULT_PORT = 80
 DEFAULT_FAMILY = "washer_dryer"

@@ -1,0 +1,265 @@
+"""Automated hardware capability profiler for IFB front-load washing machines and washer dryers."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import Any, Callable, Optional
+
+from .client import IFBWasherClient
+from .const import (
+    DRY_OPTIONS,
+    EXTRA_RINSE_OPTIONS,
+    HIL_OPTION_DRY,
+    HIL_OPTION_EXTRA_RINSE,
+    HIL_OPTION_SPIN,
+    HIL_OPTION_TEMP,
+    PROGRAM_CAPABILITIES_FRONT_LOAD,
+    PROGRAM_CAPABILITIES_TOP_LOAD,
+    PROGRAM_CAPABILITIES_WASHER_DRYER,
+    SPIN_SPEED_OPTIONS,
+    TEMPERATURE_OPTIONS,
+    ProgramCapabilities,
+    get_program_capabilities,
+)
+from .protocol import build_user_option_command
+
+_LOGGER = logging.getLogger(__name__)
+
+# Standard candidate probe values
+CANDIDATE_SPIN_CODES = [0, 1, 2, 4, 6, 7, 8]  # No Spin, 400, 600, 800, 1000, 1200, 1400
+CANDIDATE_TEMP_CODES = [2, 7, 3, 4, 5, 6]     # Cold, 20°C, 30°C, 40°C, 60°C, 95°C
+CANDIDATE_EXTRA_RINSES = [0, 1, 2, 3]
+CANDIDATE_DRY_CODES = [0, 1, 2, 7, 8, 9, 10]   # No Dry, Cupboard, Iron, 30m, 1h, 1.5h, 2h
+
+
+async def probe_single_program(
+    client: IFBWasherClient,
+    program_code: int,
+    base_caps: Optional[ProgramCapabilities] = None,
+    is_washer_dryer: bool = True,
+    delay_between_cmds: float = 0.35,
+) -> ProgramCapabilities:
+    """Probe a single wash program for exact hardware spin ceilings, temperature acceptance, and options."""
+    if base_caps is None:
+        base_caps = get_program_capabilities(program_code)
+
+    _LOGGER.debug("Probing program code %d on washer...", program_code)
+    try:
+        await client.select_program(program_code)
+        await asyncio.sleep(delay_between_cmds * 2)
+    except Exception as exc:
+        _LOGGER.warning("Could not select program %d during calibration: %s", program_code, exc)
+        return base_caps
+
+    # 1. Probe Spin Speeds
+    allowed_spins: list[str] = []
+    for spin_code in CANDIDATE_SPIN_CODES:
+        try:
+            pkt = build_user_option_command(HIL_OPTION_SPIN, spin_code)
+            await client._send_raw_command(pkt)
+            await asyncio.sleep(delay_between_cmds)
+            st = await client.get_state()
+            raw = bytes.fromhex(st.raw_hex)
+            reported_spin_code = raw[8] if len(raw) > 8 else st.spin_speed_code
+            rinse_hold_active = bool(raw[11] & 0x04) if len(raw) > 11 else st.rinse_hold
+
+            # If sending a higher spin code triggered Rinse Hold or reverted to 0, that spin code is not supported
+            if reported_spin_code == spin_code and not rinse_hold_active:
+                name = SPIN_SPEED_OPTIONS.get(spin_code)
+                if name and name not in allowed_spins:
+                    allowed_spins.append(name)
+        except Exception as exc:
+            _LOGGER.debug("Spin probe error for code %d: %s", spin_code, exc)
+
+    if not allowed_spins:
+        allowed_spins = list(base_caps.allowed_spins)
+
+    # 2. Probe Temperatures
+    allowed_temps: list[str] = []
+    for temp_code in CANDIDATE_TEMP_CODES:
+        try:
+            pkt = build_user_option_command(HIL_OPTION_TEMP, temp_code)
+            await client._send_raw_command(pkt)
+            await asyncio.sleep(delay_between_cmds)
+            st = await client.get_state()
+            raw = bytes.fromhex(st.raw_hex)
+            reported_temp_code = raw[10] if len(raw) > 10 else st.temperature_code
+
+            if reported_temp_code == temp_code:
+                name = TEMPERATURE_OPTIONS.get(temp_code)
+                if name and name not in allowed_temps:
+                    allowed_temps.append(name)
+        except Exception as exc:
+            _LOGGER.debug("Temp probe error for code %d: %s", temp_code, exc)
+
+    if not allowed_temps:
+        allowed_temps = list(base_caps.allowed_temps)
+
+    # 3. Probe Extra Rinse max count
+    max_extra_rinse = 0
+    supports_extra_rinse = base_caps.supports_extra_rinse
+    if supports_extra_rinse:
+        for r_count in [1, 2, 3]:
+            try:
+                pkt = build_user_option_command(HIL_OPTION_EXTRA_RINSE, r_count)
+                await client._send_raw_command(pkt)
+                await asyncio.sleep(delay_between_cmds)
+                st = await client.get_state()
+                raw = bytes.fromhex(st.raw_hex)
+                reported_rinse = raw[9] if len(raw) > 9 else st.extra_rinse
+                if reported_rinse == r_count:
+                    max_extra_rinse = r_count
+            except Exception:
+                pass
+        # Reset extra rinse back to 0
+        try:
+            await client._send_raw_command(build_user_option_command(HIL_OPTION_EXTRA_RINSE, 0))
+            await asyncio.sleep(delay_between_cmds)
+        except Exception:
+            pass
+
+    # 4. Probe Dry Modes (if Washer Dryer)
+    allowed_dry: list[str] = ["No Dry"]
+    supports_dry = base_caps.supports_dry
+    if is_washer_dryer and supports_dry:
+        for d_code in [1, 2, 7, 8]:
+            try:
+                pkt = build_user_option_command(HIL_OPTION_DRY, d_code)
+                await client._send_raw_command(pkt)
+                await asyncio.sleep(delay_between_cmds)
+                st = await client.get_state()
+                raw = bytes.fromhex(st.raw_hex)
+                reported_dry = raw[28] if len(raw) > 28 else st.dry_mode_code
+                if reported_dry == d_code:
+                    d_name = DRY_OPTIONS.get(d_code)
+                    if d_name and d_name not in allowed_dry:
+                        allowed_dry.append(d_name)
+            except Exception:
+                pass
+        # Reset dry mode back to 0
+        try:
+            await client._send_raw_command(build_user_option_command(HIL_OPTION_DRY, 0))
+            await asyncio.sleep(delay_between_cmds)
+        except Exception:
+            pass
+
+    return ProgramCapabilities(
+        allowed_temps=tuple(allowed_temps),
+        allowed_spins=tuple(allowed_spins),
+        supports_dry=len(allowed_dry) > 1 or supports_dry,
+        allowed_dry_modes=tuple(allowed_dry) if len(allowed_dry) > 1 else base_caps.allowed_dry_modes,
+        supports_steam=base_caps.supports_steam,
+        supports_prewash=base_caps.supports_prewash,
+        supports_soak=base_caps.supports_soak,
+        supports_time_saver=base_caps.supports_time_saver,
+        supports_extra_rinse=supports_extra_rinse and (max_extra_rinse > 0 or base_caps.supports_extra_rinse),
+        supports_hot_rinse=base_caps.supports_hot_rinse,
+        supports_rinse_hold=base_caps.supports_rinse_hold,
+        supports_eco=base_caps.supports_eco,
+        supports_aroma=base_caps.supports_aroma,
+        supports_anti_crease=base_caps.supports_anti_crease,
+    )
+
+
+async def calibrate_appliance_quick(
+    client: IFBWasherClient,
+    program_map: dict[int, str],
+    base_caps_map: dict[int, ProgramCapabilities],
+    is_washer_dryer: bool = True,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    delay_between_cmds: float = 0.35,
+) -> dict[int, ProgramCapabilities]:
+    """Run a quick ~30s calibration on key daily programs (Mix/Daily, Cotton, Wash+Dry)."""
+    calibrated_map: dict[int, ProgramCapabilities] = dict(base_caps_map)
+    
+    # Priority programs to calibrate quickly
+    priority_codes: list[int] = []
+    for code, name in program_map.items():
+        clean = name.lower()
+        if any(k in clean for k in ("mix", "daily", "cotton", "wash + dry", "wash+dry")):
+            priority_codes.append(code)
+
+    if not priority_codes:
+        priority_codes = list(program_map.keys())[:3]
+
+    total = len(priority_codes)
+    for idx, code in enumerate(priority_codes):
+        prog_name = program_map.get(code, f"Program {code}")
+        if progress_callback:
+            progress_callback(idx + 1, total, prog_name)
+        base = base_caps_map.get(code, get_program_capabilities(code))
+        calibrated_caps = await probe_single_program(
+            client,
+            program_code=code,
+            base_caps=base,
+            is_washer_dryer=is_washer_dryer,
+            delay_between_cmds=delay_between_cmds,
+        )
+        calibrated_map[code] = calibrated_caps
+
+    # Return machine to a clean standby state
+    try:
+        first_code = list(program_map.keys())[0] if program_map else 1
+        await client.select_program(first_code)
+    except Exception:
+        pass
+
+    return calibrated_map
+
+
+async def calibrate_appliance_detailed(
+    client: IFBWasherClient,
+    program_map: dict[int, str],
+    base_caps_map: dict[int, ProgramCapabilities],
+    is_washer_dryer: bool = True,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
+    delay_between_cmds: float = 0.35,
+) -> dict[int, ProgramCapabilities]:
+    """Run an exhaustive ~2-3 min calibration across every program on the dial."""
+    calibrated_map: dict[int, ProgramCapabilities] = dict(base_caps_map)
+    codes = list(program_map.keys())
+    total = len(codes)
+
+    for idx, code in enumerate(codes):
+        prog_name = program_map.get(code, f"Program {code}")
+        if progress_callback:
+            progress_callback(idx + 1, total, prog_name)
+        base = base_caps_map.get(code, get_program_capabilities(code))
+        calibrated_caps = await probe_single_program(
+            client,
+            program_code=code,
+            base_caps=base,
+            is_washer_dryer=is_washer_dryer,
+            delay_between_cmds=delay_between_cmds,
+        )
+        calibrated_map[code] = calibrated_caps
+
+    # Return machine to clean standby state
+    try:
+        first_code = codes[0] if codes else 1
+        await client.select_program(first_code)
+    except Exception:
+        pass
+
+    return calibrated_map
+
+
+
+def serialize_capabilities_map(caps_map: dict[int, ProgramCapabilities]) -> dict[str, Any]:
+    """Serialize program capabilities map to a JSON-friendly dict."""
+    return {str(code): caps.to_dict() for code, caps in caps_map.items()}
+
+
+def deserialize_capabilities_map(data: dict[str, Any]) -> dict[int, ProgramCapabilities]:
+    """Deserialize program capabilities map from a JSON-friendly dict."""
+    result: dict[int, ProgramCapabilities] = {}
+    for code_str, caps_dict in data.items():
+        try:
+            code = int(code_str)
+            if isinstance(caps_dict, dict):
+                result[code] = ProgramCapabilities.from_dict(caps_dict)
+        except (ValueError, TypeError):
+            continue
+    return result
+

@@ -57,27 +57,11 @@ TEMP_NAME_TO_CODE = {name: code for code, name in TEMPERATURE_OPTIONS.items()}
 
 
 def _get_capabilities_for_coordinator(coord: IFBWasherCoordinator):
-    """Resolve active program capabilities using ifb_washer_models with resilient fallback."""
+    """Resolve active program capabilities using coordinator profile, lookup, or fallback."""
     if coord.data is None:
         return None
-    try:
-        try:
-            from ifb_washer_models import get_lookup
-        except ImportError:
-            from .ifb_washer_models import get_lookup
-        lookup = get_lookup()
-        manual_code = getattr(coord, "manual_code", "MAN_742_E")
-        prog_name = coord.data.program_name or str(coord.data.program_code)
-        caps = lookup.get_program_capabilities(manual_code, prog_name)
-        if caps:
-            return caps
-    except Exception:
-        pass
-    try:
-        from .ifb_washer_local.const import get_program_capabilities
-    except ImportError:
-        from ifb_washer_local.const import get_program_capabilities
-    return get_program_capabilities(coord.data.program_code)
+    return coord.get_program_capabilities(coord.data.program_code)
+
 
 
 async def async_setup_entry(
@@ -182,13 +166,13 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
             return
 
         current_prog = self.coordinator.data.program_code if self.coordinator.data else None
-        current_temp = self.coordinator.data.tub_temperature_c if self.coordinator.data else None
+        current_temp = self.coordinator.data.temperature_code if self.coordinator.data else None
 
         try:
             updated_state = await self.coordinator.client.set_spin_speed(
                 spin_code,
                 program_code=current_prog,
-                temp_c=current_temp,
+                temp_code=current_temp,
             )
             self.coordinator.async_set_updated_data(updated_state)
             await self.coordinator.async_request_refresh()
@@ -238,11 +222,13 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             return
 
         current_prog = self.coordinator.data.program_code if self.coordinator.data else None
+        current_spin = self.coordinator.data.spin_speed_code if self.coordinator.data else None
 
         try:
             updated_state = await self.coordinator.client.set_temperature(
                 temp_code,
                 program_code=current_prog,
+                spin_code=current_spin,
             )
             self.coordinator.async_set_updated_data(updated_state)
             await self.coordinator.async_request_refresh()

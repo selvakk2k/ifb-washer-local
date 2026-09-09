@@ -15,6 +15,7 @@ from .const import (
     TEMPERATURE_OPTIONS,
     ApplianceFamily,
     MachineState,
+    ProgramCapabilities,
     ProgramSignature,
 )
 from .exceptions import (
@@ -22,6 +23,13 @@ from .exceptions import (
     IFBError,
     IFBProtocolError,
     IFBTimeoutError,
+)
+from .profiler import (
+    calibrate_appliance_detailed,
+    calibrate_appliance_quick,
+    deserialize_capabilities_map,
+    probe_single_program,
+    serialize_capabilities_map,
 )
 from .protocol import (
     WasherState,
@@ -50,7 +58,9 @@ __all__ = [
     "PROGRAM_CODES_FRONT_LOAD",
     "PROGRAM_CODES_TOP_LOAD",
     "PROGRAM_CODES_WASHER_DRYER",
+    "ProgramCapabilities",
     "ProgramSignature",
+
     "SPIN_SPEED_OPTIONS",
     "STATE_LABELS",
     "TELEMETRY_SIGNATURES",
@@ -61,7 +71,13 @@ __all__ = [
     "build_program_selection",
     "build_status_query",
     "build_user_option_command",
+    "calibrate_appliance_detailed",
+    "calibrate_appliance_quick",
     "compute_checksums",
+    "deserialize_capabilities_map",
     "detect_program_from_telemetry",
     "parse_status_frame",
+    "probe_single_program",
+    "serialize_capabilities_map",
 ]
+

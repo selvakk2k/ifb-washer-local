@@ -107,15 +107,21 @@ def build_program_selection(
 
 
 def build_user_option_command(hil_id: int, option_value: int) -> bytes:
-    """Build a 9-byte user option selection packet (Extra Rinse, Soak, Delay, Dry, Modifiers)."""
+    """Build a 9-byte user option selection packet (Extra Rinse, Soak, Delay, Dry, Modifiers, Spin)."""
+    if hil_id == HIL_OPTION_SPIN:
+        val_high = (option_value >> 8) & 0xFF
+        val_low = option_value & 0xFF
+    else:
+        val_high = option_value & 0xFF
+        val_low = 0x00
     pkt = [
         FRAME_HEADER,
         0x07,
         CMD_TYPE_USER_OPTION,
         0x01,
         hil_id & 0xFF,
-        option_value & 0xFF,
-        0x00,
+        val_high,
+        val_low,
         0x00,
         0x00,
     ]

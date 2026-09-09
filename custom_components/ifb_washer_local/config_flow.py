@@ -27,11 +27,17 @@ try:
         PROGRAM_CODES_TOP_LOAD,
         PROGRAM_CODES_WASHER_DRYER,
         WasherState,
+        calibrate_appliance_detailed,
+        calibrate_appliance_quick,
+        serialize_capabilities_map,
     )
     from .ifb_washer_local.const import (
         DIAL_SIDES_BY_FAMILY,
         MACHINE_TYPE_LABELS,
         MODELS_BY_FAMILY,
+        PROGRAM_CAPABILITIES_FRONT_LOAD,
+        PROGRAM_CAPABILITIES_TOP_LOAD,
+        PROGRAM_CAPABILITIES_WASHER_DRYER,
     )
 except (ImportError, ValueError):
     from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
@@ -46,18 +52,28 @@ except (ImportError, ValueError):
         PROGRAM_CODES_TOP_LOAD,
         PROGRAM_CODES_WASHER_DRYER,
         WasherState,
+        calibrate_appliance_detailed,
+        calibrate_appliance_quick,
+        serialize_capabilities_map,
     )
     from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
         DIAL_SIDES_BY_FAMILY,
         MACHINE_TYPE_LABELS,
         MODELS_BY_FAMILY,
+        PROGRAM_CAPABILITIES_FRONT_LOAD,
+        PROGRAM_CAPABILITIES_TOP_LOAD,
+        PROGRAM_CAPABILITIES_WASHER_DRYER,
     )
 
 from .const import (
+    CONF_CALIBRATED_PROFILE,
     CONF_CUSTOM_MODEL,
     CONF_FAMILY,
     CONF_MODEL,
+    CONF_SCAN_INTERVAL_RUNNING,
+    CONF_SCAN_INTERVAL_STANDBY,
     DEFAULT_FAMILY,
+
     DEFAULT_SCAN_INTERVAL_RUNNING,
     DEFAULT_SCAN_INTERVAL_STANDBY,
     DOMAIN,
@@ -97,6 +113,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._initial_state: WasherState | None = None
         self._phase1_code: int = 12
         self._phase1_side: str = "left"
+        self._calibrated_profile: dict[str, Any] | None = None
+
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -372,13 +390,90 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_finish_verification(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Finish verification and complete setup."""
-        return self._create_entry()
+        """Finish dial verification and prompt for hardware capability calibration."""
+        return await self.async_step_calibrate()
 
     async def async_step_skip_verification(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Skip dial verification and complete setup."""
+        """Skip dial verification and prompt for hardware capability calibration."""
+        return await self.async_step_calibrate()
+
+    async def async_step_calibrate(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 5: Would you like to calibrate your device?"""
+        return self.async_show_menu(
+            step_id="calibrate",
+            menu_options=["calibrate_standard", "calibrate_quick", "calibrate_detailed"],
+            description_placeholders={
+                "model_name": self._model,
+            },
+        )
+
+    async def async_step_calibrate_standard(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Skip live probing and use pre-defined model catalog profile."""
+        self._calibrated_profile = None
+        return self._create_entry()
+
+    async def async_step_calibrate_quick(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Run quick ~20-30s hardware calibration on core daily programs."""
+        return await self._run_calibration(mode="quick")
+
+    async def async_step_calibrate_detailed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Run full ~1.5-2m detailed hardware calibration across all dial positions."""
+        return await self._run_calibration(mode="detailed")
+
+    async def _run_calibration(self, mode: str) -> ConfigFlowResult:
+        """Execute hardware probe with live client."""
+        if self._client is None:
+            session = async_get_clientsession(self.hass)
+            self._client = IFBWasherClient(host=self._host, port=self._port, session=session)
+
+        prog_map = FAMILY_PROGRAM_MATRICES.get(
+            self._family, PROGRAM_CODES_WASHER_DRYER
+        )
+        is_wd = self._family in (ApplianceFamily.WASHER_DRYER, "washer_dryer")
+
+        if self._family == ApplianceFamily.FRONT_LOAD:
+            base_caps_map = PROGRAM_CAPABILITIES_FRONT_LOAD
+        elif self._family == ApplianceFamily.TOP_LOAD_SMART:
+            base_caps_map = PROGRAM_CAPABILITIES_TOP_LOAD
+        else:
+            base_caps_map = PROGRAM_CAPABILITIES_WASHER_DRYER
+
+        try:
+            st = await self._client.get_state()
+            if not st.is_running and not st.is_paused:
+                if mode == "detailed":
+                    result = await calibrate_appliance_detailed(
+                        self._client,
+                        prog_map,
+                        base_caps_map,
+                        is_washer_dryer=is_wd,
+                    )
+                else:
+                    result = await calibrate_appliance_quick(
+                        self._client,
+                        prog_map,
+                        base_caps_map,
+                        is_washer_dryer=is_wd,
+                    )
+                self._calibrated_profile = serialize_capabilities_map(result)
+                _LOGGER.info(
+                    "Calibrated %d programs during config flow for IFB %s",
+                    len(result),
+                    self._model,
+                )
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOGGER.warning("Appliance calibration error during setup: %s", exc)
+
         return self._create_entry()
 
     async def async_step_custom(
@@ -388,7 +483,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._family = ApplianceFamily.CUSTOM
             self._model = "Custom Dial Model"
-            return self._create_entry()
+            return await self.async_step_calibrate()
 
         return self.async_show_form(
             step_id="custom",
@@ -398,15 +493,19 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     def _create_entry(self) -> ConfigFlowResult:
         """Create the config entry."""
         title = f"IFB {self._model} ({self._host})"
+        data: dict[str, Any] = {
+            CONF_HOST: self._host,
+            CONF_PORT: self._port,
+            CONF_FAMILY: self._family,
+            CONF_MODEL: self._model,
+            CONF_CUSTOM_MODEL: self._custom_model,
+        }
+        if self._calibrated_profile:
+            data[CONF_CALIBRATED_PROFILE] = self._calibrated_profile
+
         return self.async_create_entry(
             title=title,
-            data={
-                CONF_HOST: self._host,
-                CONF_PORT: self._port,
-                CONF_FAMILY: self._family,
-                CONF_MODEL: self._model,
-                CONF_CUSTOM_MODEL: self._custom_model,
-            },
+            data=data,
         )
 
     @staticmethod
@@ -421,26 +520,62 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
 class IFBWasherOptionsFlowHandler(OptionsFlow):
     """Handle options for IFB Washer Local."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    def __init__(self, config_entry: ConfigEntry | None = None) -> None:
+        """Initialize options flow safely without writing to read-only property."""
+        self._entry_ref = config_entry
+
+    @property
+    def _entry(self) -> ConfigEntry:
+        """Get the active config entry."""
+        if self._entry_ref is not None:
+            return self._entry_ref
+        try:
+            if hasattr(self, "config_entry") and self.config_entry is not None:
+                return self.config_entry
+        except (ValueError, AttributeError):
+            pass
+        raise RuntimeError("No config entry found in options flow")
+
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage integration options."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+        entry = self._entry
 
-        current_standby = self.config_entry.options.get(
-            "scan_interval_standby", DEFAULT_SCAN_INTERVAL_STANDBY
+        if user_input is not None:
+            cal_action = user_input.get("calibration_action", "none")
+            if cal_action in ("quick", "detailed"):
+                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                if coordinator:
+                    await coordinator.async_calibrate(mode=cal_action)
+            elif cal_action == "reset":
+                new_data = dict(entry.data)
+                new_data.pop(CONF_CALIBRATED_PROFILE, None)
+                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                if coordinator:
+                    coordinator.calibrated_caps = {}
+                    await coordinator.async_request_refresh()
+
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_MODEL: user_input[CONF_MODEL],
+                    CONF_SCAN_INTERVAL_STANDBY: user_input[CONF_SCAN_INTERVAL_STANDBY],
+                    CONF_SCAN_INTERVAL_RUNNING: user_input[CONF_SCAN_INTERVAL_RUNNING],
+                },
+            )
+
+        current_standby = entry.options.get(
+            CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY
         )
-        current_running = self.config_entry.options.get(
-            "scan_interval_running", DEFAULT_SCAN_INTERVAL_RUNNING
+        current_running = entry.options.get(
+            CONF_SCAN_INTERVAL_RUNNING, DEFAULT_SCAN_INTERVAL_RUNNING
         )
-        current_model = self.config_entry.options.get(
+        current_model = entry.options.get(
             CONF_MODEL,
-            self.config_entry.data.get(CONF_MODEL, "WD Executive ZXS"),
+            entry.data.get(CONF_MODEL, "WD Executive ZXS"),
         )
 
         schema = vol.Schema(
@@ -451,17 +586,30 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                     selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),
                 vol.Optional(
-                    "scan_interval_standby", default=current_standby
+                    CONF_SCAN_INTERVAL_STANDBY, default=current_standby
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=5, max=120, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="seconds"
                     )
                 ),
                 vol.Optional(
-                    "scan_interval_running", default=current_running
+                    CONF_SCAN_INTERVAL_RUNNING, default=current_running
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
                         min=2, max=30, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="seconds"
+                    )
+                ),
+                vol.Optional(
+                    "calibration_action", default="none"
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[
+                            selector.SelectOptionDict(value="none", label="Keep Current Profile"),
+                            selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~30s)"),
+                            selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~2m)"),
+                            selector.SelectOptionDict(value="reset", label="Reset to Standard Catalog Defaults"),
+                        ],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
             }
@@ -471,3 +619,4 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             step_id="init",
             data_schema=schema,
         )
+

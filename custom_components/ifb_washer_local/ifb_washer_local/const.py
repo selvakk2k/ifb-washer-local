@@ -471,6 +471,26 @@ class ProgramCapabilities:
             "supports_anti_crease": self.supports_anti_crease,
         }
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ProgramCapabilities:
+        """Create ProgramCapabilities instance from a dictionary."""
+        return cls(
+            allowed_temps=tuple(data.get("allowed_temps", ())),
+            allowed_spins=tuple(data.get("allowed_spins", ())),
+            supports_dry=bool(data.get("supports_dry", False)),
+            allowed_dry_modes=tuple(data.get("allowed_dry_modes", ("No Dry",))),
+            supports_steam=bool(data.get("supports_steam", True)),
+            supports_prewash=bool(data.get("supports_prewash", True)),
+            supports_soak=bool(data.get("supports_soak", True)),
+            supports_time_saver=bool(data.get("supports_time_saver", True)),
+            supports_extra_rinse=bool(data.get("supports_extra_rinse", True)),
+            supports_hot_rinse=bool(data.get("supports_hot_rinse", True)),
+            supports_rinse_hold=bool(data.get("supports_rinse_hold", True)),
+            supports_eco=bool(data.get("supports_eco", True)),
+            supports_aroma=bool(data.get("supports_aroma", True)),
+            supports_anti_crease=bool(data.get("supports_anti_crease", True)),
+        )
+
 
 # Program Capabilities per Official Wash Guide Map (Pages 57-67)
 PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
@@ -656,8 +676,13 @@ DEFAULT_PROGRAM_CAPABILITIES = ProgramCapabilities(
 )
 
 
+PROGRAM_CAPABILITIES_FRONT_LOAD: dict[int, ProgramCapabilities] = PROGRAM_CAPABILITIES_WASHER_DRYER
+PROGRAM_CAPABILITIES_TOP_LOAD: dict[int, ProgramCapabilities] = PROGRAM_CAPABILITIES_WASHER_DRYER
+
+
 def get_program_capabilities(program_code: int) -> ProgramCapabilities:
     """Return program option capabilities for a given program code."""
     return PROGRAM_CAPABILITIES_WASHER_DRYER.get(program_code, DEFAULT_PROGRAM_CAPABILITIES)
+
 
 

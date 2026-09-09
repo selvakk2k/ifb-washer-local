@@ -86,19 +86,27 @@ async def test_config_flow_full_path(mock_hass):
         assert "finish_verification" in result6["menu_options"]
         assert "skip_verification" in result6["menu_options"]
 
-        # 7. Opposite Side Finish Verification button click -> creates entry
+        # 7. Opposite Side Finish Verification button click -> routes to calibrate step
         result7 = await flow.async_step_finish_verification()
-        assert result7["type"] == FlowResultType.CREATE_ENTRY
-        assert result7["title"] == "IFB WD Executive ZXS (192.168.0.100)"
-        assert result7["data"][CONF_HOST] == "192.168.0.100"
-        assert result7["data"][CONF_PORT] == 80
-        assert result7["data"][CONF_FAMILY] == ApplianceFamily.WASHER_DRYER
-        assert result7["data"][CONF_MODEL] == "WD Executive ZXS"
+        assert result7["type"] == FlowResultType.MENU
+        assert result7["step_id"] == "calibrate"
+        assert "calibrate_standard" in result7["menu_options"]
+        assert "calibrate_quick" in result7["menu_options"]
+        assert "calibrate_detailed" in result7["menu_options"]
+
+        # 8. Select Standard Calibration -> creates entry immediately
+        result8 = await flow.async_step_calibrate_standard()
+        assert result8["type"] == FlowResultType.CREATE_ENTRY
+        assert result8["title"] == "IFB WD Executive ZXS (192.168.0.100)"
+        assert result8["data"][CONF_HOST] == "192.168.0.100"
+        assert result8["data"][CONF_PORT] == 80
+        assert result8["data"][CONF_FAMILY] == ApplianceFamily.WASHER_DRYER
+        assert result8["data"][CONF_MODEL] == "WD Executive ZXS"
 
 
 @pytest.mark.asyncio
 async def test_config_flow_skip_verification(mock_hass):
-    """Test clicking 'Skip Verification' in Phase 1 directly creates entry."""
+    """Test clicking 'Skip Verification' in Phase 1 routes to calibrate step and standard creates entry."""
     flow = IFBWasherConfigFlow()
     flow.hass = mock_hass
     flow._host = "192.168.0.100"
@@ -107,21 +115,61 @@ async def test_config_flow_skip_verification(mock_hass):
     flow._model = "WD Executive ZXS"
 
     result = await flow.async_step_skip_verification()
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_MODEL] == "WD Executive ZXS"
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "calibrate"
+
+    result2 = await flow.async_step_calibrate_standard()
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
+    assert result2["data"][CONF_MODEL] == "WD Executive ZXS"
 
 
 @pytest.mark.asyncio
 async def test_config_flow_custom_selection(mock_hass):
-    """Test custom step directly creates custom entry."""
+    """Test custom step routes to calibrate step and standard creates custom entry."""
     flow = IFBWasherConfigFlow()
     flow.hass = mock_hass
     flow._host = "192.168.0.105"
     flow._port = 80
 
     result = await flow.async_step_custom({})
-    assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["data"][CONF_FAMILY] == ApplianceFamily.CUSTOM
+    assert result["type"] == FlowResultType.MENU
+    assert result["step_id"] == "calibrate"
+
+    result2 = await flow.async_step_calibrate_standard()
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
+    assert result2["data"][CONF_FAMILY] == ApplianceFamily.CUSTOM
+
+
+@pytest.mark.asyncio
+async def test_config_flow_quick_calibration(mock_hass):
+    """Test quick calibration execution during setup."""
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow._host = "192.168.0.100"
+    flow._port = 80
+    flow._family = ApplianceFamily.WASHER_DRYER
+    flow._model = "WD Executive ZXS"
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.is_running = False
+    mock_state.is_paused = False
+
+    with (
+        patch(
+            "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+            new_callable=AsyncMock,
+            return_value=mock_state,
+        ),
+        patch(
+            "custom_components.ifb_washer_local.config_flow.calibrate_appliance_quick",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+    ):
+        result = await flow.async_step_calibrate_quick()
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"][CONF_MODEL] == "WD Executive ZXS"
+
 
 
 @pytest.mark.asyncio
@@ -200,3 +248,42 @@ async def test_verification_preserves_settings_when_idle(mock_hass):
     _, kwargs = flow._client.select_program.call_args
     assert kwargs["spin_speed_code"] == 4
     assert kwargs["temperature_code"] == 3
+
+
+@pytest.mark.asyncio
+async def test_options_flow_init_and_save(mock_hass):
+    """Test options flow initialization and saving without 500 attribute error."""
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_FAMILY: ApplianceFamily.WASHER_DRYER,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+    mock_entry.options = {
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    # Show form
+    result = await options_flow.async_step_init()
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    # Submit form
+    result2 = await options_flow.async_step_init({
+        CONF_MODEL: "WD Executive ZXS Pro",
+        "scan_interval_standby": 20,
+        "scan_interval_running": 4,
+        "calibration_action": "none",
+    })
+    assert result2["type"] == FlowResultType.CREATE_ENTRY
+    assert result2["data"][CONF_MODEL] == "WD Executive ZXS Pro"
+    assert result2["data"]["scan_interval_standby"] == 20
+    assert result2["data"]["scan_interval_running"] == 4
+
