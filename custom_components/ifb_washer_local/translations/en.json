@@ -14,10 +14,10 @@
         }
       },
       "machine_type": {
-        "title": "Select Machine Category",
-        "description": "Select your IFB washing machine category to load the matching program dial matrix:",
+        "title": "Select Device Type",
+        "description": "Select your IFB washing machine type to load the matching program dial matrix:",
         "data": {
-          "family": "Machine Category"
+          "family": "Device Type"
         },
         "data_description": {
           "family": "Choose Washer Dryer Refresher (with steam/dry), Front Load Washer, or Top Load Washer."
@@ -25,7 +25,7 @@
       },
       "model": {
         "title": "Select Model",
-        "description": "Select your {type_name} model from the catalog, or choose Other / Custom Model to specify your exact variant:",
+        "description": "Select your {type_name} model from the catalog, or choose Custom Model:",
         "data": {
           "model": "Model Series"
         },
@@ -41,16 +41,16 @@
         }
       },
       "verify_phase1": {
-        "title": "Physical Verification: Same Side",
-        "description": "{dial_image}\n\nYour machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the wheel.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "title": "Step 1: Dial Verification",
+        "description": "{dial_image}\n\nYour machine is currently set to **{active_name}** (Code {active_code}).\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}) on the **{side_name}** of the dial.\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
         "data": {
           "verified": "The screen or LED matches this program",
           "skip_verification": "Skip visual verification"
         }
       },
       "verify_phase2": {
-        "title": "Physical Verification: Opposite Side",
-        "description": "{dial_image}\n\nNow testing the **{side_name}** of the wheel to verify the full dial matrix.\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
+        "title": "Step 2: Dial Verification",
+        "description": "{dial_image}\n\nNow testing the opposite side of the dial to verify the full program matrix.\n\nHome Assistant has sent a test command to select **{target_name}** (Code {target_code}).\n\nDoes your machine's screen or indicator LED show **{target_name}**?",
         "data": {
           "verified": "The screen or LED matches this program",
           "skip_verification": "Skip visual verification"

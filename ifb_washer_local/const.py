@@ -195,11 +195,11 @@ MACHINE_TYPE_LABELS: dict[str, str] = {
 # Known Models Catalog per Appliance Category
 MODELS_BY_FAMILY: dict[str, list[str]] = {
     ApplianceFamily.WASHER_DRYER: [
-        "WD Executive ZXS (7kg / 4kg)",
-        "WD Executive ZXR (8.5kg / 6.5kg)",
-        "TurboDry 7010 (7kg / 4kg)",
-        "TurboDry 8514 (8.5kg / 6.5kg)",
-        "Senator WDR 8.5/6.5",
+        "WD Executive ZXS",
+        "WD Executive ZXR",
+        "TurboDry 7010",
+        "TurboDry 8514",
+        "Senator WDR",
         "Senator Smart Touch WDR",
         "Washer Dryer 742 Series",
         "custom",

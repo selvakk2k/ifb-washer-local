@@ -19,8 +19,10 @@ from ifb_washer_local import ApplianceFamily, WasherState
 @pytest.fixture
 def mock_hass():
     """Create a mocked HomeAssistant core instance."""
-    hass = MagicMock(spec=HomeAssistant)
+    hass = MagicMock()
     hass.data = {}
+    hass.config.path = MagicMock(return_value="/tmp/ha_test_www/ifb_washer_local")
+    hass.async_add_executor_job = AsyncMock(return_value=None)
     return hass
 
 
@@ -40,13 +42,16 @@ async def test_config_flow_full_path(mock_hass):
     mock_state.program_code = 13  # Mix / Daily
 
     with (
-        patch("custom_components.ifb_washer_local.config_flow.async_get_clientsession"),
-        patch("custom_components.ifb_washer_local.config_flow.IFBWasherClient") as mock_client_cls,
+        patch(
+            "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+            new_callable=AsyncMock,
+            return_value=mock_state,
+        ),
+        patch(
+            "custom_components.ifb_washer_local.config_flow.IFBWasherClient.select_program",
+            new_callable=AsyncMock,
+        ),
     ):
-        mock_client = AsyncMock()
-        mock_client.get_state.return_value = mock_state
-        mock_client.select_program.return_value = mock_state
-        mock_client_cls.return_value = mock_client
 
         with patch.object(flow, "async_set_unique_id", new_callable=AsyncMock):
             result2 = await flow.async_step_user({CONF_HOST: "192.168.0.100"})
@@ -61,7 +66,7 @@ async def test_config_flow_full_path(mock_hass):
         assert result3["step_id"] == "model"
 
         # 4. Select Model
-        result4 = await flow.async_step_model({CONF_MODEL: "WD Executive ZXS (7kg / 4kg)"})
+        result4 = await flow.async_step_model({CONF_MODEL: "WD Executive ZXS"})
         assert result4["type"] == FlowResultType.FORM
         assert result4["step_id"] == "verify_phase1"
 
@@ -73,11 +78,11 @@ async def test_config_flow_full_path(mock_hass):
         # 6. Phase 2 Verification (Opposite side)
         result6 = await flow.async_step_verify_phase2({"verified": True})
         assert result6["type"] == FlowResultType.CREATE_ENTRY
-        assert result6["title"] == "IFB WD Executive ZXS (7kg / 4kg) (192.168.0.100)"
+        assert result6["title"] == "IFB WD Executive ZXS (192.168.0.100)"
         assert result6["data"][CONF_HOST] == "192.168.0.100"
         assert result6["data"][CONF_PORT] == 80
         assert result6["data"][CONF_FAMILY] == ApplianceFamily.WASHER_DRYER
-        assert result6["data"][CONF_MODEL] == "WD Executive ZXS (7kg / 4kg)"
+        assert result6["data"][CONF_MODEL] == "WD Executive ZXS"
 
 
 @pytest.mark.asyncio

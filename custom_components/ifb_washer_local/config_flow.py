@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+import os
+import time
+from typing import Any, Sequence
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -41,14 +43,14 @@ from .const import (
     DEFAULT_SCAN_INTERVAL_STANDBY,
     DOMAIN,
 )
-from .svg_dial import generate_dial_svg
+from .dial_animation import generate_animated_dial_gif
 
 _LOGGER = logging.getLogger(__name__)
 
 MACHINE_TYPE_OPTIONS = [
     selector.SelectOptionDict(
         value=ApplianceFamily.WASHER_DRYER,
-        label="Washer Dryer Refresher (Wash & Dry with Refresh)",
+        label="Washer Dryer Refresher",
     ),
     selector.SelectOptionDict(
         value=ApplianceFamily.FRONT_LOAD,
@@ -75,7 +77,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._host: str = ""
         self._port: int = DEFAULT_PORT
         self._family: str = DEFAULT_FAMILY
-        self._model: str = "WD Executive ZXS (7kg / 4kg)"
+        self._model: str = "WD Executive ZXS"
         self._custom_model: str = ""
         self._client: IFBWasherClient | None = None
         self._initial_state: WasherState | None = None
@@ -153,7 +155,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=MACHINE_TYPE_OPTIONS,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
+                        mode=selector.SelectSelectorMode.LIST,
                     )
                 ),
             }
@@ -229,6 +231,54 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=schema,
         )
 
+    async def _async_generate_dial_image(
+        self,
+        filename: str,
+        active_name: str,
+        active_code: int,
+        target_name: str,
+        target_code: int,
+        left_items: Sequence[tuple[int, str]],
+        right_items: Sequence[tuple[int, str]],
+        is_top_load: bool,
+    ) -> str:
+        """Generate animated GIF in Home Assistant www directory and return markdown image tag."""
+        try:
+            www_dir = (
+                self.hass.config.path("www", "ifb_washer_local")
+                if hasattr(self.hass, "config") and hasattr(self.hass.config, "path")
+                else ""
+            )
+            if www_dir and isinstance(www_dir, str):
+                gif_path = os.path.join(www_dir, filename)
+                if hasattr(self.hass, "async_add_executor_job"):
+                    await self.hass.async_add_executor_job(
+                        generate_animated_dial_gif,
+                        gif_path,
+                        active_name,
+                        active_code,
+                        target_name,
+                        target_code,
+                        left_items,
+                        right_items,
+                        is_top_load,
+                    )
+                else:
+                    generate_animated_dial_gif(
+                        gif_path,
+                        active_name,
+                        active_code,
+                        target_name,
+                        target_code,
+                        left_items,
+                        right_items,
+                        is_top_load,
+                    )
+                return f"![Dial Graphic](/local/ifb_washer_local/{filename}?t={int(time.time())})"
+        except Exception as exc:  # pylint: disable=broad-except
+            _LOGGER.debug("Could not generate animated dial GIF: %s", exc)
+        return ""
+
     async def async_step_verify_phase1(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -273,18 +323,19 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 1 verification probe exception: %s", err)
 
-        # Generate SVG illustration
+        # Generate animated GIF illustration
         left_items = [(c, prog_map[c]) for c in left_codes if c in prog_map]
         right_items = [(c, prog_map[c]) for c in right_codes if c in prog_map]
         is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
 
-        svg_data_uri = generate_dial_svg(
+        dial_image = await self._async_generate_dial_image(
+            filename="dial_phase1.gif",
             active_name=curr_name,
             active_code=curr_code,
             target_name=target_name,
             target_code=test_code,
-            left_programs=left_items,
-            right_programs=right_items,
+            left_items=left_items,
+            right_items=right_items,
             is_top_load=is_top_load,
         )
 
@@ -299,7 +350,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="verify_phase1",
             data_schema=schema,
             description_placeholders={
-                "dial_image": f"![Dial]({svg_data_uri})",
+                "dial_image": dial_image,
                 "active_name": curr_name,
                 "active_code": str(curr_code),
                 "target_name": target_name,
@@ -340,18 +391,19 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 2 verification probe exception: %s", err)
 
-        # Generate SVG illustration
+        # Generate animated GIF illustration
         left_items = [(c, prog_map[c]) for c in left_codes if c in prog_map]
         right_items = [(c, prog_map[c]) for c in right_codes if c in prog_map]
         is_top_load = self._family == ApplianceFamily.TOP_LOAD_SMART
 
-        svg_data_uri = generate_dial_svg(
+        dial_image = await self._async_generate_dial_image(
+            filename="dial_phase2.gif",
             active_name=prog_map.get(self._phase1_code, ""),
             active_code=self._phase1_code,
             target_name=target_name,
             target_code=test_code,
-            left_programs=left_items,
-            right_programs=right_items,
+            left_items=left_items,
+            right_items=right_items,
             is_top_load=is_top_load,
         )
 
@@ -366,7 +418,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="verify_phase2",
             data_schema=schema,
             description_placeholders={
-                "dial_image": f"![Dial]({svg_data_uri})",
+                "dial_image": dial_image,
                 "target_name": target_name,
                 "target_code": str(test_code),
                 "side_name": opp_side_name if not is_top_load else "opposite group",
