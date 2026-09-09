@@ -378,7 +378,7 @@ def parse_status_frame(
         cycle_progress = 0.0
 
     tub_clean_required = bool(state_code == MachineState.COMPLETE and ((data[7] >> 7) & 1) == 1)
-    is_powered_on = bool((data[7] >> 6) & 1) if len(data) > 7 else True
+    is_powered_on = not bool((data[7] >> 6) & 1) if len(data) > 7 else True
 
     # Fault / Problem Detection from dedicated alarm registers:
     # data[24] = alarm3, data[26] = alarm1, data[27] = alarm2, data[41] = alarm4

@@ -269,15 +269,15 @@ def test_power_on_off_fixed_commands():
 
 def test_power_state_telemetry_parsing():
     """Verify decoding of powered on vs powered off status via byte 7 bit 6."""
-    raw = bytearray.fromhex("6324810001070d41060002220000000000010c0000220000000000000000010100000001baf4")
-    # Byte 7 = 0x41 (0100 0001) -> bit 6 is 1 -> is_powered_on is True
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    # Byte 7 = 0x01 (0000 0001) -> bit 6 is 0 -> is_powered_on is True (Active / ON)
     c1, c2 = compute_checksums(raw[:-2])
     raw[-2], raw[-1] = c1, c2
     state_on = parse_status_frame(bytes(raw))
     assert state_on.is_powered_on is True
 
-    # Byte 7 = 0x01 (0000 0001) -> bit 6 is 0 -> is_powered_on is False
-    raw[7] = 0x01
+    # Byte 7 = 0x41 (0100 0001) -> bit 6 is 1 -> is_powered_on is False (Standby / OFF)
+    raw[7] = 0x41
     c1, c2 = compute_checksums(raw[:-2])
     raw[-2], raw[-1] = c1, c2
     state_off = parse_status_frame(bytes(raw))
