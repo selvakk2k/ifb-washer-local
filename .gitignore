@@ -54,3 +54,7 @@ tmp/
 # OS
 .DS_Store
 Thumbs.db
+
+# Manuals & Scanned Assets
+manuals/
+*.pdf

@@ -7,15 +7,34 @@ import logging
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from ifb_washer_local.const import (
-    DELAY_START_NAME_TO_CODE,
-    DELAY_START_OPTIONS,
-    SPIN_SPEED_OPTIONS,
-    TEMPERATURE_OPTIONS,
-)
+try:
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        DELAY_START_NAME_TO_CODE,
+        DELAY_START_OPTIONS,
+        SPIN_SPEED_OPTIONS,
+        TEMPERATURE_OPTIONS,
+    )
+    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
+except ImportError:
+    from .ifb_washer_local.const import (
+        DELAY_START_NAME_TO_CODE,
+        DELAY_START_OPTIONS,
+        SPIN_SPEED_OPTIONS,
+        TEMPERATURE_OPTIONS,
+    )
+    from .ifb_washer_local.exceptions import (
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
 
 from .const import DOMAIN
 from .coordinator import IFBWasherCoordinator
@@ -77,8 +96,14 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
         """Change the selected wash program."""
         for code, name in self.coordinator.program_map.items():
             if name == option:
-                updated_state = await self.coordinator.client.select_program(code)
-                self.coordinator.async_set_updated_data(updated_state)
+                try:
+                    updated_state = await self.coordinator.client.select_program(code)
+                    self.coordinator.async_set_updated_data(updated_state)
+                    await self.coordinator.async_request_refresh()
+                except (IFBTimeoutError, IFBConnectionError) as err:
+                    raise HomeAssistantError(f"Communication error selecting program '{option}': {err}") from err
+                except IFBError as err:
+                    raise HomeAssistantError(f"Washer error selecting program '{option}': {err}") from err
                 return
         _LOGGER.warning("Unknown program option selected: %s", option)
 
@@ -115,8 +140,14 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
             _LOGGER.warning("Unknown spin speed option selected: %s", option)
             return
 
-        updated_state = await self.coordinator.client.set_spin_speed(spin_code)
-        self.coordinator.async_set_updated_data(updated_state)
+        try:
+            updated_state = await self.coordinator.client.set_spin_speed(spin_code)
+            self.coordinator.async_set_updated_data(updated_state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error setting spin speed '{option}': {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error setting spin speed '{option}': {err}") from err
 
 
 class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
@@ -150,8 +181,14 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             _LOGGER.warning("Unknown temperature option selected: %s", option)
             return
 
-        updated_state = await self.coordinator.client.set_temperature(temp_code)
-        self.coordinator.async_set_updated_data(updated_state)
+        try:
+            updated_state = await self.coordinator.client.set_temperature(temp_code)
+            self.coordinator.async_set_updated_data(updated_state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error setting temperature '{option}': {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error setting temperature '{option}': {err}") from err
 
 
 class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
@@ -191,5 +228,11 @@ class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
             _LOGGER.warning("Unknown delay start option selected: %s", option)
             return
 
-        updated_state = await self.coordinator.client.set_delay_start(code)
-        self.coordinator.async_set_updated_data(updated_state)
+        try:
+            updated_state = await self.coordinator.client.set_delay_start(code)
+            self.coordinator.async_set_updated_data(updated_state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error setting delay start '{option}': {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error setting delay start '{option}': {err}") from err

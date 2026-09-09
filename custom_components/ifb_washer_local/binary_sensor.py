@@ -16,7 +16,10 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from ifb_washer_local import WasherState
+try:
+    from ifb_washer_local import WasherState  # type: ignore[import-not-found, import-untyped]
+except ImportError:
+    from .ifb_washer_local import WasherState
 
 from .const import DOMAIN
 from .coordinator import IFBWasherCoordinator

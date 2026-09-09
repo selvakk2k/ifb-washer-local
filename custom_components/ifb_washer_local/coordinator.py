@@ -15,22 +15,36 @@ from homeassistant.helpers.update_coordinator import (
 )
 from homeassistant.util import dt as dt_util
 
-from ifb_washer_local import (
-    ApplianceFamily,
-    FAMILY_PROGRAM_MATRICES,
-    IFBConnectionError,
-    IFBError,
-    IFBTimeoutError,
-    IFBWasherClient,
-    PROGRAM_CODES_WASHER_DRYER,
-    WasherState,
-)
+try:
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+        ApplianceFamily,
+        FAMILY_PROGRAM_MATRICES,
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+        PROGRAM_CODES_WASHER_DRYER,
+        WasherState,
+    )
+except ImportError:
+    from .ifb_washer_local import (
+        ApplianceFamily,
+        FAMILY_PROGRAM_MATRICES,
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+        PROGRAM_CODES_WASHER_DRYER,
+        WasherState,
+    )
 
 from .const import (
     CONF_CUSTOM_MODEL,
     CONF_CUSTOM_PROGRAMS,
     CONF_FAMILY,
     CONF_MODEL,
+    CONF_SCAN_INTERVAL_RUNNING,
+    CONF_SCAN_INTERVAL_STANDBY,
     DEFAULT_FAMILY,
     DEFAULT_SCAN_INTERVAL_RUNNING,
     DEFAULT_SCAN_INTERVAL_STANDBY,
@@ -50,16 +64,22 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         entry: ConfigEntry | None = None,
     ) -> None:
         """Initialize the coordinator."""
+        standby_interval = DEFAULT_SCAN_INTERVAL_STANDBY
+        if entry and isinstance(getattr(entry, "options", None), dict):
+            standby_interval = entry.options.get(
+                CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY
+            )
+
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN}_{client.host}",
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL_STANDBY),
+            update_interval=timedelta(seconds=standby_interval),
         )
         self.client = client
         self.entry = entry
-        self._current_interval = DEFAULT_SCAN_INTERVAL_STANDBY
+        self._current_interval = standby_interval
         self._initial_cycle_duration: int = 0
 
         # Determine configured appliance family and program matrix
@@ -158,10 +178,18 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
                 self._initial_cycle_duration = 0
 
             # Adaptive polling interval: faster updates while washing, relaxed while idle
+            standby_interval = DEFAULT_SCAN_INTERVAL_STANDBY
+            running_interval = DEFAULT_SCAN_INTERVAL_RUNNING
+            if self.entry and isinstance(getattr(self.entry, "options", None), dict):
+                standby_interval = self.entry.options.get(
+                    CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY
+                )
+                running_interval = self.entry.options.get(
+                    CONF_SCAN_INTERVAL_RUNNING, DEFAULT_SCAN_INTERVAL_RUNNING
+                )
+
             target_interval = (
-                DEFAULT_SCAN_INTERVAL_RUNNING
-                if state.is_running
-                else DEFAULT_SCAN_INTERVAL_STANDBY
+                running_interval if state.is_running else standby_interval
             )
             if target_interval != self._current_interval:
                 self.update_interval = timedelta(seconds=target_interval)

@@ -14,24 +14,44 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ifb_washer_local import (
-    DEFAULT_PORT,
-    ApplianceFamily,
-    FAMILY_PROGRAM_MATRICES,
-    IFBConnectionError,
-    IFBError,
-    IFBTimeoutError,
-    IFBWasherClient,
-    PROGRAM_CODES_FRONT_LOAD,
-    PROGRAM_CODES_TOP_LOAD,
-    PROGRAM_CODES_WASHER_DRYER,
-    WasherState,
-)
-from ifb_washer_local.const import (
-    DIAL_SIDES_BY_FAMILY,
-    MACHINE_TYPE_LABELS,
-    MODELS_BY_FAMILY,
-)
+try:
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+        DEFAULT_PORT,
+        ApplianceFamily,
+        FAMILY_PROGRAM_MATRICES,
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+        PROGRAM_CODES_FRONT_LOAD,
+        PROGRAM_CODES_TOP_LOAD,
+        PROGRAM_CODES_WASHER_DRYER,
+        WasherState,
+    )
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        DIAL_SIDES_BY_FAMILY,
+        MACHINE_TYPE_LABELS,
+        MODELS_BY_FAMILY,
+    )
+except ImportError:
+    from .ifb_washer_local import (
+        DEFAULT_PORT,
+        ApplianceFamily,
+        FAMILY_PROGRAM_MATRICES,
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+        PROGRAM_CODES_FRONT_LOAD,
+        PROGRAM_CODES_TOP_LOAD,
+        PROGRAM_CODES_WASHER_DRYER,
+        WasherState,
+    )
+    from .ifb_washer_local.const import (
+        DIAL_SIDES_BY_FAMILY,
+        MACHINE_TYPE_LABELS,
+        MODELS_BY_FAMILY,
+    )
 
 from .const import (
     CONF_CUSTOM_MODEL,
@@ -275,10 +295,21 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._phase1_code = test_code
         target_name = prog_map.get(test_code, f"Program {test_code}")
 
-        # Probe physical machine with same-side program
+        # Probe physical machine with same-side program safely
         try:
             if self._client:
-                await self._client.select_program(test_code)
+                curr_state = await self._client.get_state()
+                if curr_state.is_running or curr_state.is_paused:
+                    _LOGGER.warning(
+                        "IFB Washer at %s is actively running or paused; skipping Phase 1 verification probe to protect wash cycle",
+                        self._host,
+                    )
+                else:
+                    await self._client.select_program(
+                        test_code,
+                        spin_speed_code=curr_state.spin_speed_code,
+                        temperature_code=curr_state.temperature_code,
+                    )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 1 verification probe exception: %s", err)
 
@@ -311,10 +342,21 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         test_code = candidates[0] if candidates else list(prog_map.keys())[-1]
         target_name = prog_map.get(test_code, f"Program {test_code}")
 
-        # Probe physical machine with opposite-side program
+        # Probe physical machine with opposite-side program safely
         try:
             if self._client:
-                await self._client.select_program(test_code)
+                curr_state = await self._client.get_state()
+                if curr_state.is_running or curr_state.is_paused:
+                    _LOGGER.warning(
+                        "IFB Washer at %s is actively running or paused; skipping Phase 2 verification probe to protect wash cycle",
+                        self._host,
+                    )
+                else:
+                    await self._client.select_program(
+                        test_code,
+                        spin_speed_code=curr_state.spin_speed_code,
+                        temperature_code=curr_state.temperature_code,
+                    )
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Phase 2 verification probe exception: %s", err)
 

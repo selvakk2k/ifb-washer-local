@@ -108,16 +108,17 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 * **Child Lock Active**: Physical control panel lockout status.
 
 ### Selectors
-* **Program**: Remote selection of wash programs.
-* **Spin Speed**: Remote adjustment of spin speed (No Spin, 400, 600, 800, 1000, 1200, 1400 RPM).
-* **Temperature**: Remote adjustment of wash temperature (Cold, 30°C, 40°C, 60°C, 95°C, Eco modes).
+* **Program**: Remote selection of wash programs (`select.program_select`).
+* **Spin Speed**: Remote adjustment of spin speed (`select.spin_speed_select` - No Spin, 400, 600, 800, 1000, 1200, 1400 RPM).
+* **Temperature**: Remote adjustment of wash temperature (`select.temperature_select` - Cold, 30°C, 40°C, 60°C, 95°C).
+* **Delay Start**: Remote selection of delay start timer (`select.delay_start_select` - No Delay, 30 Min, 1 to 19 Hours).
 
 ### Controls
-* **Child Lock Switch**: Toggle physical child lock on the machine.
-* **Start Button**: Start or resume wash program.
-* **Pause Button**: Pause running wash program.
-* **Cancel Button**: Terminate the current cycle.
-* **Turn Off Button**: Power off the appliance.
+* **Power Switch**: Toggle washer power state (`switch.power` - On / Low-power Standby).
+* **Child Lock Switch**: Toggle physical control panel lock (`switch.child_lock_switch`).
+* **Start Button**: Start or resume wash program (`button.start`).
+* **Pause Button**: Pause running wash program (`button.pause`).
+* **Cancel Button**: Terminate the current cycle (`button.cancel`).
 
 ---
 

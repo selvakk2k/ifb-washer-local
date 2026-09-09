@@ -56,25 +56,27 @@ def compute_checksums(data: bytes | list[int]) -> tuple[int, int]:
 
 ## 3. Verified Hardware Program Codes (`WD EXECUTIVE ZXS`)
 
-The physical selector dial has 14 click positions. Rotation begins clockwise from position 1:
+The physical selector dial has 14 click positions arranged sequentially into two arcs:
+* **Right Arc (Codes 1–7)**: Wash + Dry 2Hr (1), Wash + Dry 4Hr (2), Steam & Dry (3), Refresh (4), Power Steam (5), CradleWash® (6), Wool (7).
+* **Left Arc (Codes 8–15)**: Bulky (8), Baby Wear (9), Anti-Allergen (10), Synthetic (11), Cotton (12), Mix / Daily (13), Express 15' (14), Tub Clean (15).
 
-| Code | Program Name | Default Temp | Default Spin | Nominal Time | Notes / Flags |
-| :---: | :--- | :---: | :---: | :---: | :--- |
-| `1` | **Wash + Dry 2Hr** | 40°C | 1000 RPM | 120 min | Dry flag enabled |
-| `2` | **Wash + Dry 4Hr** | 40°C | 1200 RPM | 240 min | Dry flag enabled |
-| `3` | **Steam & Dry** | 40°C | 1400 RPM | 90 min | Steam + Dry flags |
-| `4` | **Refresh** | Steam / Cold | 0 RPM | 30 min | Wrinkle/odour removal (No spin) |
-| `5` | **Power Steam** | 40°C | 800 RPM | ~90 min | Steam stain removal |
-| `6` | **CradleWash®** | 30°C | 400 RPM | 37 min | Gentle silk/delicates cycle |
-| `7` | **Wool** | 30°C | 800 RPM | ~43 min | Woolmark certified cycle |
-| `8` | **Bulky** | 40°C | 800 RPM | ~90 min | Bedding and curtains |
-| `9` | **Baby Wear** | 60°C | 1000 RPM | ~130 min | Sanitizing extra rinse |
-| `10` | **Anti-Allergen** | 60°C | 1000 RPM | ~115 min | High temp allergen removal |
-| `11` | **Synthetic** | 40°C | 800 RPM | ~75 min | Synthetics / easy care |
-| `12` | **Cotton** | 60°C | 1400 RPM | 163 min | Full cotton cycle |
-| `13` | **Mix / Daily** | 40°C | 1000 RPM | 72 min | Daily standard load |
-| `14` | **Express 15'** | Cold | 800 RPM | 15 min | Rapid cycle |
-| `15` | **Tub Clean** | 95°C | 1400 RPM | ~90 min | App-designated sanitation cycle |
+| Code | Program Name | Dial Arc | Default Temp | Default Spin | Nominal Time | Notes / Flags |
+| :---: | :--- | :---: | :---: | :---: | :---: | :--- |
+| `1` | **Wash + Dry 2Hr** | Right | 40°C | 1000 RPM | 120 min | Dry flag enabled |
+| `2` | **Wash + Dry 4Hr** | Right | 40°C | 1200 RPM | 240 min | Dry flag enabled |
+| `3` | **Steam & Dry** | Right | 40°C | 1400 RPM | 90 min | Steam + Dry flags |
+| `4` | **Refresh** | Right | Steam / Cold | 0 RPM | 30 min | Wrinkle/odour removal (No spin) |
+| `5` | **Power Steam** | Right | 40°C | 800 RPM | ~90 min | Steam stain removal |
+| `6` | **CradleWash®** | Right | 30°C | 400 RPM | 37 min | Gentle silk/delicates cycle |
+| `7` | **Wool** | Right | 30°C | 800 RPM | ~43 min | Woolmark certified cycle |
+| `8` | **Bulky** | Left | 40°C | 800 RPM | ~90 min | Bedding and curtains |
+| `9` | **Baby Wear** | Left | 60°C | 1000 RPM | ~130 min | Sanitizing extra rinse |
+| `10` | **Anti-Allergen** | Left | 60°C | 1000 RPM | ~115 min | High temp allergen removal |
+| `11` | **Synthetic** | Left | 40°C | 800 RPM | ~75 min | Synthetics / easy care |
+| `12` | **Cotton** | Left | 60°C | 1400 RPM | 163 min | Full cotton cycle |
+| `13` | **Mix / Daily** | Left | 40°C | 1000 RPM | 72 min | Daily standard load |
+| `14` | **Express 15'** | Left | Cold | 800 RPM | 15 min | Rapid cycle |
+| `15` | **Tub Clean** | Left | 95°C | 1400 RPM | ~90 min | App-designated sanitation cycle |
 
 ---
 
@@ -98,9 +100,9 @@ Extracted from official manual `TL_360_UM.pdf`:
 
 ---
 
-## 5. Telemetry Signature Auto-Detection Engine
+## 5. Telemetry Signature Auto-Detection Engine (Fallback / Experimental)
 
-When an unverified model or unknown program code is probed, the integration can reverse engineer its identity by matching the initial telemetry tuple `(duration_min, temp_c, spin_rpm, is_dry_enabled)` against official manual specifications:
+For unverified models or unknown dial configurations where physical layout is untested, the integration includes a fallback engine to reverse-engineer cycle identity by matching initial telemetry parameters against known signatures:
 
 | Program Signature | Duration | Temp | Spin | Dry Flag |
 | :--- | :---: | :---: | :---: | :---: |
@@ -118,11 +120,11 @@ When an unverified model or unknown program code is probed, the integration can 
 
 ## 6. Config Flow & Verification Wizard Specification
 
-The setup flow in `config_flow.py` must support the following step progression:
+The setup flow in `config_flow.py` guides the user through setup:
 
 ```
-[Step 1: IP & Port] -> [Step 2: Family Selection] -> [Step 3: Verification Wizard] -> [Entry Created]
-                                                  ↳ [Step 4: Manual Code Form]   ↗
+[Step 1: IP & Port] -> [Step 2: Family Selection] -> [Step 3: Model Selection] -> [Step 4: Verification Wizard] -> [Entry Created]
+                                                                                ↳ [Skip Verification]          ↗
 ```
 
 1. **Step 2 (Family Selection)**:
@@ -130,18 +132,14 @@ The setup flow in `config_flow.py` must support the following step progression:
      - `Washer Dryer (WD Executive / ZXS Series)`
      - `Front Load (Senator / Executive Plus Series)`
      - `Smart Top Load (SWID / SID Series) - Unverified`
-     - `Manual / Custom Configuration`
-     - `Auto-Detect from Telemetry`
 
-2. **Step 3 (Interactive Visual Verification)**:
-   - Instructions: *"Please stand next to your washing machine to verify the display."*
-   - Test 1 (Left Program): Sends command `0x03` for Code `13` (Mix/Daily). Asks: *"Does the display show 'Mix / Daily'?"*
-   - Test 2 (Right Program): Sends command `0x03` for Code `1` (Wash+Dry 2Hr) or Code `14` (Express 15'). Asks: *"Does the display show '[Target Program]'?"*
-   - **Skip Option**: Includes a *"Skip visual verification"* checkbox so users not near the appliance can finish setup immediately.
+2. **Step 3 (Model Selection)**:
+   - Select exact catalog model or enter custom model name.
 
-3. **Step 4 (Manual Code Form)**:
-   - Accessible if the user selects `Manual / Custom Configuration` or fails visual verification.
-   - Provides numeric input fields for assigning custom program codes.
+3. **Step 4 (Sequential Dial Verification)**:
+   - **Phase 1 (Same-Side Test)**: Probes another program on the same dial arc (Right 1–7 or Left 8–15) as the currently active program. If the washer is actively running or paused, the probe is safely skipped to avoid disrupting the cycle.
+   - **Phase 2 (Opposite-Side Test)**: Probes a candidate program on the opposite dial arc.
+   - **Skip Option**: Users can skip verification at any step to immediately complete setup.
 
 ---
 
@@ -187,26 +185,25 @@ When building the custom Lovelace card, follow the **Indian Smart Appliance Desi
 
 ```
 ifb-washer-local/
-├── ifb_washer_local/                   # Standalone async client library
-│   ├── client.py                       # IFBWasherClient (HTTP multipart POST)
-│   ├── const.py                        # Constants, Enums, Program & Signature tables
-│   ├── exceptions.py                   # Custom exceptions
-│   ├── protocol.py                     # Binary encoders, decoders, checksums
-│   └── __init__.py                     # Package exports
-├── custom_components/ifb_washer_local/ # Home Assistant integration
-│   ├── __init__.py                     # Config entry setup & platform forwarding
-│   ├── config_flow.py                  # Wizard: family selection, visual check, skip
-│   ├── coordinator.py                  # Adaptive polling coordinator (5s run / 15s idle)
-│   ├── sensor.py                       # State, Program, Remaining, RPM, Temp, Timestamp, Progress
-│   ├── binary_sensor.py                # Running, Door, Child Lock, Problem
-│   ├── select.py                       # Program, Spin Speed, Temp selectors
-│   ├── button.py                       # Start, Pause, Cancel, Power Off buttons
-│   ├── switch.py                       # Child Lock, Steam, Extra Rinse switches
-│   ├── manifest.json                   # HACS / Core manifest
-│   └── strings.json / translations/    # Localization strings
-├── manuals/official/                   # 47 scraped official IFB user manuals
-└── tests/
-    └── test_protocol.py                # Pytest unit test suite
+├── ifb_washer_local/                           # Standalone async client library (PyPI)
+│   ├── client.py                               # IFBWasherClient (HTTP multipart POST with asyncio.Lock)
+│   ├── const.py                                # Constants, Enums, Program & Signature tables
+│   ├── exceptions.py                           # Custom exceptions
+│   ├── protocol.py                             # Binary encoders, decoders, checksums
+│   └── __init__.py                             # Package exports
+├── custom_components/ifb_washer_local/         # Home Assistant integration (HACS)
+│   ├── ifb_washer_local/                       # Vendored local copy with fallback imports
+│   ├── __init__.py                             # Config entry setup & platform forwarding
+│   ├── config_flow.py                          # Setup flow: family selection, safe dial check, skip
+│   ├── coordinator.py                          # Adaptive polling coordinator (options-driven)
+│   ├── sensor.py                               # State, Program, Remaining, RPM, Temp, Timestamp, Progress
+│   ├── binary_sensor.py                        # Running, Door, Child Lock, Problem
+│   ├── select.py                               # Program, Spin Speed, Temp, Delay Start selectors
+│   ├── button.py                               # Start, Pause, Cancel buttons
+│   ├── switch.py                               # Power, Child Lock switches
+│   ├── manifest.json                           # HACS / Core manifest
+│   └── strings.json / translations/            # Localization strings
+└── tests/                                      # Pytest test suite
 ```
 
 ---

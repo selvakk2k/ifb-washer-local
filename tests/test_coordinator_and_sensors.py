@@ -1,7 +1,7 @@
 """Unit tests for IFB Washer Local coordinator calculations and sensors."""
 
 from datetime import datetime
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.core import HomeAssistant
 
@@ -31,6 +31,11 @@ def create_mock_state(
     state.error_description = error_description
     state.is_complete = is_complete
     state.cycle_progress = cycle_progress
+    state.state_name = "Main Wash" if is_running else "Standby"
+    state.state_code = 3 if is_running else 1
+    state.door_locked = is_running
+    state.program_name = "Mix / Daily"
+    state.program_code = 13
     return state
 
 
@@ -209,7 +214,7 @@ async def test_program_select_async_set_updated_data():
 
     client.select_program.assert_awaited_once_with(13)
     coord.async_set_updated_data.assert_called_once_with(updated_state)
-    coord.async_request_refresh.assert_not_called()
+    coord.async_request_refresh.assert_awaited_once()
 
 
 def test_time_remaining_and_program_duration_sensors():
@@ -272,6 +277,7 @@ async def test_delay_start_options_and_select():
 
     coord = IFBWasherCoordinator(hass, client)
     coord.async_set_updated_data = MagicMock()
+    coord.async_request_refresh = AsyncMock()
 
     select = IFBWasherDelayStartSelect(coord)
     assert "No Delay" in select.options
@@ -299,16 +305,21 @@ async def test_delay_start_options_and_select():
     await select.async_select_option("2 Hours")
     client.set_delay_start.assert_awaited_once_with(4)
     coord.async_set_updated_data.assert_called_once_with(updated_state)
+    coord.async_request_refresh.assert_awaited_once()
 
     # 5. Selecting "30 Minutes" sends hardware code 1
     client.set_delay_start.reset_mock()
+    coord.async_request_refresh.reset_mock()
     await select.async_select_option("30 Minutes")
     client.set_delay_start.assert_awaited_once_with(1)
+    coord.async_request_refresh.assert_awaited_once()
 
     # 6. Selecting "No Delay" sends hardware code 0
     client.set_delay_start.reset_mock()
+    coord.async_request_refresh.reset_mock()
     await select.async_select_option("No Delay")
     client.set_delay_start.assert_awaited_once_with(0)
+    coord.async_request_refresh.assert_awaited_once()
 
 
 async def test_power_switch():
@@ -329,6 +340,7 @@ async def test_power_switch():
 
     coord = IFBWasherCoordinator(hass, client)
     coord.async_set_updated_data = MagicMock()
+    coord.async_request_refresh = AsyncMock()
 
     power_switch = IFBWasherPowerSwitch(coord)
     assert power_switch.icon == "mdi:power"
@@ -345,12 +357,118 @@ async def test_power_switch():
     await power_switch.async_turn_on()
     client.power_on.assert_awaited_once()
     coord.async_set_updated_data.assert_called_once_with(state_on)
+    coord.async_request_refresh.assert_awaited_once()
 
     # Turn off
     coord.async_set_updated_data.reset_mock()
+    coord.async_request_refresh.reset_mock()
     await power_switch.async_turn_off()
     client.power_off.assert_awaited_once()
     coord.async_set_updated_data.assert_called_once_with(state_off)
+    coord.async_request_refresh.assert_awaited_once()
+
+
+async def test_coordinator_options_scan_intervals():
+    """Verify coordinator respects custom scan intervals from entry.options."""
+    from datetime import timedelta
+    from custom_components.ifb_washer_local.const import (
+        CONF_SCAN_INTERVAL_RUNNING,
+        CONF_SCAN_INTERVAL_STANDBY,
+    )
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+
+    entry = MagicMock()
+    entry.data = {}
+    entry.options = {
+        CONF_SCAN_INTERVAL_STANDBY: 30,
+        CONF_SCAN_INTERVAL_RUNNING: 3,
+    }
+
+    coord = IFBWasherCoordinator(hass, client, entry=entry)
+    assert coord.update_interval == timedelta(seconds=30)
+    assert coord._current_interval == 30
+
+    # Simulate running state update
+    state_running = create_mock_state(is_running=True)
+    client.get_state = AsyncMock(return_value=state_running)
+    await coord._async_update_data()
+    assert coord.update_interval == timedelta(seconds=3)
+    assert coord._current_interval == 3
+
+    # Simulate standby state update
+    state_standby = create_mock_state(is_running=False)
+    client.get_state = AsyncMock(return_value=state_standby)
+    await coord._async_update_data()
+    assert coord.update_interval == timedelta(seconds=30)
+    assert coord._current_interval == 30
+
+
+async def test_entity_exception_translation():
+    """Verify entity platforms translate IFBError to HomeAssistantError."""
+    import pytest
+    from homeassistant.exceptions import HomeAssistantError
+    from ifb_washer_local.exceptions import IFBConnectionError, IFBTimeoutError, IFBError
+    from custom_components.ifb_washer_local.button import BUTTON_TYPES, IFBWasherButton
+    from custom_components.ifb_washer_local.switch import IFBWasherPowerSwitch, IFBWasherChildLockSwitch
+    from custom_components.ifb_washer_local.select import IFBWasherProgramSelect
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_request_refresh = AsyncMock()
+
+    # 1. Button error translation
+    client.start = AsyncMock(side_effect=IFBTimeoutError("Timeout"))
+    start_desc = next(d for d in BUTTON_TYPES if d.key == "start")
+    button = IFBWasherButton(coord, start_desc)
+    with pytest.raises(HomeAssistantError, match="Communication failed"):
+        await button.async_press()
+
+    # 2. Power switch error translation
+    client.power_on = AsyncMock(side_effect=IFBConnectionError("Conn reset"))
+    power_switch = IFBWasherPowerSwitch(coord)
+    with pytest.raises(HomeAssistantError, match="Communication error powering on"):
+        await power_switch.async_turn_on()
+
+    # 3. Child lock switch error translation
+    client.set_child_lock = AsyncMock(side_effect=IFBError("Protocol error"))
+    child_lock_switch = IFBWasherChildLockSwitch(coord)
+    with pytest.raises(HomeAssistantError, match="Washer error enabling child lock"):
+        await child_lock_switch.async_turn_on()
+
+    # 4. Program select error translation
+    client.select_program = AsyncMock(side_effect=IFBTimeoutError("Timeout"))
+    select = IFBWasherProgramSelect(coord)
+    with pytest.raises(HomeAssistantError, match="Communication error selecting program"):
+        await select.async_select_option("Mix / Daily")
+
+
+async def test_client_lock_serialization():
+    """Verify IFBWasherClient serializes raw command dispatches via internal lock."""
+    import asyncio
+    from ifb_washer_local import IFBWasherClient
+
+    client = IFBWasherClient(host="192.168.0.100")
+    execution_order = []
+
+    async def mock_send_raw(payload):
+        async with client._lock:
+            execution_order.append("start")
+            await asyncio.sleep(0.02)
+            execution_order.append("end")
+            return b"\xaa\x55"
+
+    with patch.object(client, "_send_raw_command", side_effect=mock_send_raw):
+        t1 = asyncio.create_task(client._send_raw_command(b"\x01"))
+        t2 = asyncio.create_task(client._send_raw_command(b"\x02"))
+        await asyncio.gather(t1, t2)
+
+    assert execution_order == ["start", "end", "start", "end"]
+
 
 
 

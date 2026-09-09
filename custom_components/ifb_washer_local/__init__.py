@@ -9,7 +9,10 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ifb_washer_local import DEFAULT_PORT, IFBWasherClient
+try:
+    from ifb_washer_local import DEFAULT_PORT, IFBWasherClient  # type: ignore[import-not-found, import-untyped]
+except ImportError:
+    from .ifb_washer_local import DEFAULT_PORT, IFBWasherClient
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import IFBWasherCoordinator

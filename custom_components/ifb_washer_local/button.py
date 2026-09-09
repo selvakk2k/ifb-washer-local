@@ -8,10 +8,24 @@ from dataclasses import dataclass
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from ifb_washer_local import IFBWasherClient
+try:
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+    )
+except ImportError:
+    from .ifb_washer_local import (
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+    )
 
 from .const import DOMAIN
 from .coordinator import IFBWasherCoordinator
@@ -77,5 +91,14 @@ class IFBWasherButton(CoordinatorEntity[IFBWasherCoordinator], ButtonEntity):
 
     async def async_press(self) -> None:
         """Handle the button press action."""
-        await self.entity_description.press_action(self.coordinator.client)
+        try:
+            await self.entity_description.press_action(self.coordinator.client)
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(
+                f"Communication failed while pressing button {self.entity_description.key}: {err}"
+            ) from err
+        except IFBError as err:
+            raise HomeAssistantError(
+                f"Washer error while pressing button {self.entity_description.key}: {err}"
+            ) from err
         await self.coordinator.async_request_refresh()

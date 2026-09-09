@@ -143,3 +143,60 @@ async def test_config_flow_custom_model_text(mock_hass):
     assert result2["type"] == FlowResultType.MENU
     assert result2["step_id"] == "verify_initial"
     assert flow._model == "Senator Smart Touch Custom"
+
+
+@pytest.mark.asyncio
+async def test_verification_skips_probe_when_running_or_paused(mock_hass):
+    """Test that verification phases do not send select_program when washer is actively running."""
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow._host = "192.168.0.100"
+    flow._port = 80
+    flow._family = ApplianceFamily.WASHER_DRYER
+    flow._model = "WD Executive ZXS"
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.program_code = 13
+    mock_state.is_running = True
+    mock_state.is_paused = False
+
+    flow._client = MagicMock()
+    flow._client.get_state = AsyncMock(return_value=mock_state)
+    flow._client.select_program = AsyncMock()
+
+    # Phase 1
+    await flow.async_step_verify_phase1()
+    flow._client.select_program.assert_not_called()
+
+    # Phase 2
+    await flow.async_step_verify_phase2()
+    flow._client.select_program.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_verification_preserves_settings_when_idle(mock_hass):
+    """Test that verification phases preserve current spin speed and temperature settings when probing."""
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow._host = "192.168.0.100"
+    flow._port = 80
+    flow._family = ApplianceFamily.WASHER_DRYER
+    flow._model = "WD Executive ZXS"
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.program_code = 13
+    mock_state.is_running = False
+    mock_state.is_paused = False
+    mock_state.spin_speed_code = 4
+    mock_state.temperature_code = 3
+
+    flow._client = MagicMock()
+    flow._client.get_state = AsyncMock(return_value=mock_state)
+    flow._client.select_program = AsyncMock()
+
+    # Phase 1: program 13 is in left_codes, candidate on left is chosen
+    await flow.async_step_verify_phase1()
+    flow._client.select_program.assert_awaited_once()
+    _, kwargs = flow._client.select_program.call_args
+    assert kwargs["spin_speed_code"] == 4
+    assert kwargs["temperature_code"] == 3

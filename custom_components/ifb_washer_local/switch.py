@@ -11,8 +11,22 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+try:
+    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
+except ImportError:
+    from .ifb_washer_local.exceptions import (
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
 
 from .const import DOMAIN
 from .coordinator import IFBWasherCoordinator
@@ -59,13 +73,25 @@ class IFBWasherPowerSwitch(
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Power on the machine."""
-        state = await self.coordinator.client.power_on()
-        self.coordinator.async_set_updated_data(state)
+        try:
+            state = await self.coordinator.client.power_on()
+            self.coordinator.async_set_updated_data(state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error powering on washer: {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error powering on: {err}") from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Power off the machine into low-power standby."""
-        state = await self.coordinator.client.power_off()
-        self.coordinator.async_set_updated_data(state)
+        try:
+            state = await self.coordinator.client.power_off()
+            self.coordinator.async_set_updated_data(state)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error powering off washer: {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error powering off: {err}") from err
 
 
 class IFBWasherChildLockSwitch(
@@ -95,10 +121,20 @@ class IFBWasherChildLockSwitch(
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Engage child lock on the machine."""
-        await self.coordinator.client.set_child_lock(True)
-        await self.coordinator.async_request_refresh()
+        try:
+            await self.coordinator.client.set_child_lock(True)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error enabling child lock: {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error enabling child lock: {err}") from err
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Disengage child lock on the machine."""
-        await self.coordinator.client.set_child_lock(False)
-        await self.coordinator.async_request_refresh()
+        try:
+            await self.coordinator.client.set_child_lock(False)
+            await self.coordinator.async_request_refresh()
+        except (IFBTimeoutError, IFBConnectionError) as err:
+            raise HomeAssistantError(f"Communication error disabling child lock: {err}") from err
+        except IFBError as err:
+            raise HomeAssistantError(f"Washer error disabling child lock: {err}") from err
