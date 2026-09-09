@@ -212,3 +212,50 @@ async def test_program_select_async_set_updated_data():
     coord.async_request_refresh.assert_not_called()
 
 
+def test_time_remaining_and_program_duration_sensors():
+    """Verify time_remaining is gated by run state and program_duration reports total duration."""
+    from custom_components.ifb_washer_local.sensor import SENSOR_TYPES, IFBWasherSensor
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    coord = IFBWasherCoordinator(hass, client)
+
+    time_rem_desc = next(d for d in SENSOR_TYPES if d.key == "time_remaining")
+    prog_dur_desc = next(d for d in SENSOR_TYPES if d.key == "program_duration")
+    time_rem_sensor = IFBWasherSensor(coord, time_rem_desc)
+    prog_dur_sensor = IFBWasherSensor(coord, prog_dur_desc)
+
+    # 1. Standby state (is_running=False, is_paused=False, remaining=72)
+    state = create_mock_state(is_running=False, remaining_minutes=72)
+    state.is_paused = False
+    state.total_program_minutes = 72
+    coord.data = state
+
+    assert time_rem_sensor.native_value == 0
+    assert time_rem_sensor.extra_state_attributes == {
+        "program_duration": 72,
+        "display_minutes": 72,
+    }
+    assert prog_dur_sensor.native_value == 72
+
+    # 2. Running state (is_running=True, remaining=55)
+    state_running = create_mock_state(is_running=True, remaining_minutes=55)
+    state_running.is_paused = False
+    state_running.total_program_minutes = 72
+    coord.data = state_running
+
+    assert time_rem_sensor.native_value == 55
+    assert prog_dur_sensor.native_value == 72
+
+    # 3. Paused state (is_running=False, is_paused=True, remaining=30)
+    state_paused = create_mock_state(is_running=False, remaining_minutes=30)
+    state_paused.is_paused = True
+    state_paused.total_program_minutes = 72
+    coord.data = state_paused
+
+    assert time_rem_sensor.native_value == 30
+    assert prog_dur_sensor.native_value == 72
+
+
+

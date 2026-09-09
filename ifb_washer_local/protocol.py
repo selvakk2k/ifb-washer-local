@@ -366,6 +366,8 @@ def parse_status_frame(
     total_prog_h = data[32] if len(data) > 32 else 0
     total_prog_m = data[33] if len(data) > 33 else 0
     total_program_minutes = (total_prog_h * 60) + total_prog_m
+    if total_program_minutes == 0 and rem_total > 0:
+        total_program_minutes = rem_total
 
     if total_program_minutes > 0 and total_program_minutes >= rem_total:
         cycle_progress = round(((total_program_minutes - rem_total) * 100.0) / total_program_minutes, 1)

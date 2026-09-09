@@ -49,7 +49,22 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfTime.MINUTES,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda coord: coord.data.remaining_minutes if coord.data else None,
+        value_fn=lambda coord: (
+            coord.data.remaining_minutes
+            if coord.data and (coord.data.is_running or coord.data.is_paused)
+            else 0
+        ),
+    ),
+    IFBWasherSensorEntityDescription(
+        key="program_duration",
+        translation_key="program_duration",
+        icon="mdi:clock-outline",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coord: (
+            coord.data.total_program_minutes if coord.data else None
+        ),
     ),
     IFBWasherSensorEntityDescription(
         key="estimated_end_time",
@@ -140,4 +155,14 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
     def native_value(self) -> Any:
         """Return the state of the sensor."""
         return self.entity_description.value_fn(self.coordinator)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return optional sensor attributes."""
+        if self.entity_description.key == "time_remaining" and self.coordinator.data:
+            return {
+                "program_duration": self.coordinator.data.total_program_minutes,
+                "display_minutes": self.coordinator.data.remaining_minutes,
+            }
+        return None
 
