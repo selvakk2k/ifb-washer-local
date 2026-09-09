@@ -102,22 +102,18 @@ def build_program_selection(program_code: int, spin_rpm: int = 1000, temp_c: int
 
 
 def build_user_option_command(hil_id: int, option_value: int) -> bytes:
-    """Build a 9-byte user option selection packet (Spin, Temp, Extra Rinse, Soak, Delay)."""
+    """Build a 9-byte user option selection packet (Extra Rinse, Soak, Delay, Dry, Modifiers)."""
     pkt = [
         FRAME_HEADER,
         0x07,
         CMD_TYPE_USER_OPTION,
         0x01,
         hil_id & 0xFF,
-        0x00,
+        option_value & 0xFF,
         0x00,
         0x00,
         0x00,
     ]
-    if hil_id in (HIL_OPTION_SPIN, HIL_OPTION_DELAY):
-        pkt[6] = option_value & 0xFF
-    else:
-        pkt[5] = option_value & 0xFF
     chk1, chk2 = compute_checksums(pkt[:-2])
     pkt[-2] = chk1
     pkt[-1] = chk2

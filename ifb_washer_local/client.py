@@ -27,10 +27,12 @@ from .const import (
     HIL_OPTION_PRE_WASH,
     HIL_OPTION_RINSE_HOLD,
     HIL_OPTION_SOAK,
-    HIL_OPTION_SPIN,
-    HIL_OPTION_STEAM,
     HIL_OPTION_TEMP,
     HIL_OPTION_TIME_SAVER,
+    SPIN_SPEED_CODE_TO_RPM,
+    SPIN_SPEED_OPTIONS,
+    TEMPERATURE_CODE_TO_CELSIUS,
+    TEMPERATURE_OPTIONS,
 )
 from .exceptions import (
     IFBConnectionError,
@@ -142,25 +144,55 @@ class IFBWasherClient:
         await asyncio.sleep(0.3)
         return await self.get_state()
 
-    async def set_spin_speed(self, spin_code: int) -> WasherState:
-        """Set the spin speed option code (e.g. 6 for 1000 RPM)."""
-        cmd_pkt = build_user_option_command(HIL_OPTION_SPIN, spin_code)
+    async def set_spin_speed(
+        self,
+        spin_code: int,
+        program_code: Optional[int] = None,
+        temp_c: Optional[int] = None,
+    ) -> WasherState:
+        """Set the spin speed option using synchronized program parameters."""
+        rpm = SPIN_SPEED_CODE_TO_RPM.get(spin_code, spin_code if spin_code > 10 else 1000)
+        prog = program_code
+        temp = temp_c
+        if prog is None or temp is None:
+            current_state = await self.get_state()
+            if prog is None:
+                prog = current_state.program_code
+            if temp is None:
+                temp = current_state.water_temperature_c if current_state.water_temperature_c else 40
+
+        cmd_pkt = build_program_selection(prog, spin_rpm=rpm, temp_c=temp)
         await self._send_raw_command(cmd_pkt)
-        for _ in range(4):
+        for _ in range(6):
             await asyncio.sleep(0.3)
             state = await self.get_state()
-            if state.spin_speed_code == spin_code:
+            if state.spin_speed_code == spin_code or state.spin_speed_name == SPIN_SPEED_OPTIONS.get(spin_code):
                 return state
         return state
 
-    async def set_temperature(self, temp_code: int) -> WasherState:
-        """Set the temperature option code (e.g. 4 for 40°C)."""
-        cmd_pkt = build_user_option_command(HIL_OPTION_TEMP, temp_code)
+    async def set_temperature(
+        self,
+        temp_code: int,
+        program_code: Optional[int] = None,
+        spin_rpm: Optional[int] = None,
+    ) -> WasherState:
+        """Set the temperature option using synchronized program parameters."""
+        celsius = TEMPERATURE_CODE_TO_CELSIUS.get(temp_code, temp_code if temp_code > 10 else 40)
+        prog = program_code
+        spin = spin_rpm
+        if prog is None or spin is None:
+            current_state = await self.get_state()
+            if prog is None:
+                prog = current_state.program_code
+            if spin is None:
+                spin = SPIN_SPEED_CODE_TO_RPM.get(current_state.spin_speed_code, 1000)
+
+        cmd_pkt = build_program_selection(prog, spin_rpm=spin, temp_c=celsius)
         await self._send_raw_command(cmd_pkt)
-        for _ in range(4):
+        for _ in range(6):
             await asyncio.sleep(0.3)
             state = await self.get_state()
-            if state.temperature_code == temp_code:
+            if state.temperature_code == temp_code or state.water_temperature_c == celsius or state.temperature_name == TEMPERATURE_OPTIONS.get(temp_code):
                 return state
         return state
 

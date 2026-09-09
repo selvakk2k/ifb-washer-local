@@ -181,8 +181,15 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
             _LOGGER.warning("Unknown spin speed option selected: %s", option)
             return
 
+        current_prog = self.coordinator.data.program_code if self.coordinator.data else None
+        current_temp = self.coordinator.data.tub_temperature_c if self.coordinator.data else None
+
         try:
-            updated_state = await self.coordinator.client.set_spin_speed(spin_code)
+            updated_state = await self.coordinator.client.set_spin_speed(
+                spin_code,
+                program_code=current_prog,
+                temp_c=current_temp,
+            )
             self.coordinator.async_set_updated_data(updated_state)
             await self.coordinator.async_request_refresh()
         except (IFBTimeoutError, IFBConnectionError) as err:
@@ -230,8 +237,13 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             _LOGGER.warning("Unknown temperature option selected: %s", option)
             return
 
+        current_prog = self.coordinator.data.program_code if self.coordinator.data else None
+
         try:
-            updated_state = await self.coordinator.client.set_temperature(temp_code)
+            updated_state = await self.coordinator.client.set_temperature(
+                temp_code,
+                program_code=current_prog,
+            )
             self.coordinator.async_set_updated_data(updated_state)
             await self.coordinator.async_request_refresh()
         except (IFBTimeoutError, IFBConnectionError) as err:

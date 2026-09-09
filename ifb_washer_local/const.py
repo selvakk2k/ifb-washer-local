@@ -341,6 +341,10 @@ SPIN_SPEED_RPM_TO_CODE: dict[int, int] = {
     1400: 8,
 }
 
+SPIN_SPEED_CODE_TO_RPM: dict[int, int] = {
+    code: rpm for rpm, code in SPIN_SPEED_RPM_TO_CODE.items()
+}
+
 # Temperature Options (Option ID 3)
 TEMPERATURE_OPTIONS: dict[int, str] = {
     0: "None",
@@ -361,6 +365,17 @@ TEMPERATURE_CELSIUS_TO_CODE: dict[int, int] = {
     40: 4,
     60: 5,
     95: 6,
+}
+
+TEMPERATURE_CODE_TO_CELSIUS: dict[int, int] = {
+    2: 0,
+    7: 20,
+    3: 30,
+    4: 40,
+    5: 60,
+    6: 95,
+    8: 40,
+    9: 60,
 }
 
 # Delay Start Options (Option ID 9) - Capped at 19 Hours per IFB appliance specification
