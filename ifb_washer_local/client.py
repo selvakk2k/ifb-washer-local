@@ -18,6 +18,7 @@ from .const import (
     GAINSPAN_PROFILE_ENDPOINT,
     HIL_OPTION_SPIN,
     HIL_OPTION_TEMP,
+    HIL_OPTION_DELAY,
 )
 from .exceptions import (
     IFBConnectionError,
@@ -132,6 +133,13 @@ class IFBWasherClient:
     async def set_temperature(self, temp_code: int) -> WasherState:
         """Set the temperature option code (e.g. 4 for 40°C)."""
         cmd_pkt = build_user_option_command(HIL_OPTION_TEMP, temp_code)
+        await self._send_raw_command(cmd_pkt)
+        await asyncio.sleep(0.3)
+        return await self.get_state()
+
+    async def set_delay_start(self, hours: int) -> WasherState:
+        """Set the delay start time in hours (0 for No Delay, 1-24)."""
+        cmd_pkt = build_user_option_command(HIL_OPTION_DELAY, hours)
         await self._send_raw_command(cmd_pkt)
         await asyncio.sleep(0.3)
         return await self.get_state()

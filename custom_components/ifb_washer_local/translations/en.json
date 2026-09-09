@@ -120,6 +120,9 @@
       },
       "temperature_setting": {
         "name": "Selected Temperature"
+      },
+      "delay_start": {
+        "name": "Delay Start"
       }
     },
     "binary_sensor": {
@@ -145,6 +148,9 @@
       },
       "temperature_select": {
         "name": "Temperature"
+      },
+      "delay_start_select": {
+        "name": "Delay Start"
       }
     },
     "button": {

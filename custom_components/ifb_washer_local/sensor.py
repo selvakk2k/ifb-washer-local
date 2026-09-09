@@ -95,6 +95,15 @@ SENSOR_TYPES: tuple[IFBWasherSensorEntityDescription, ...] = (
         icon="mdi:thermometer-chevron-up",
         value_fn=lambda coord: coord.data.temperature_name if coord.data else None,
     ),
+    IFBWasherSensorEntityDescription(
+        key="delay_start",
+        translation_key="delay_start",
+        icon="mdi:timer-outline",
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda coord: coord.data.delay_start_minutes if coord.data else None,
+    ),
 )
 
 

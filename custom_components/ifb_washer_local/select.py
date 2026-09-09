@@ -11,6 +11,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ifb_washer_local.const import (
+    DELAY_START_NAME_TO_HOURS,
+    DELAY_START_OPTIONS,
     SPIN_SPEED_OPTIONS,
     TEMPERATURE_OPTIONS,
 )
@@ -38,6 +40,7 @@ async def async_setup_entry(
             IFBWasherProgramSelect(coordinator),
             IFBWasherSpinSpeedSelect(coordinator),
             IFBWasherTemperatureSelect(coordinator),
+            IFBWasherDelayStartSelect(coordinator),
         ]
     )
 
@@ -150,4 +153,43 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             return
 
         await self.coordinator.client.set_temperature(temp_code)
+        await self.coordinator.async_request_refresh()
+
+
+class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEntity):
+    """Selector entity for choosing Delay Start duration."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: IFBWasherCoordinator) -> None:
+        """Initialize the delay start selector."""
+        super().__init__(coordinator)
+        self.entity_description = SelectEntityDescription(
+            key="delay_start_select",
+            translation_key="delay_start_select",
+            icon="mdi:timer-outline",
+        )
+        self._attr_unique_id = f"{coordinator.client.host}_delay_start_select"
+        self._attr_device_info = coordinator.device_info
+        self._attr_options = list(DELAY_START_OPTIONS.values())
+
+    @property
+    def current_option(self) -> str | None:
+        """Return the current delay start setting."""
+        if self.coordinator.data is None:
+            return None
+        total_mins = getattr(self.coordinator.data, "delay_start_minutes", 0)
+        if total_mins <= 0:
+            return "No Delay"
+        hours = round(total_mins / 60)
+        return DELAY_START_OPTIONS.get(hours, f"{hours} Hours")
+
+    async def async_select_option(self, option: str) -> None:
+        """Change the delay start duration."""
+        hours = DELAY_START_NAME_TO_HOURS.get(option)
+        if hours is None:
+            _LOGGER.warning("Unknown delay start option selected: %s", option)
+            return
+
+        await self.coordinator.client.set_delay_start(hours)
         await self.coordinator.async_request_refresh()

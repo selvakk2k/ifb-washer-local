@@ -349,3 +349,11 @@ TEMPERATURE_CELSIUS_TO_CODE: dict[int, int] = {
     95: 6,
 }
 
+# Delay Start Options (Option ID 9) - Capped at 19 Hours per IFB appliance specification
+DELAY_START_OPTIONS: dict[int, str] = {
+    0: "No Delay",
+    **{h: f"{h} Hour" if h == 1 else f"{h} Hours" for h in range(1, 20)},
+}
+
+DELAY_START_NAME_TO_HOURS: dict[str, int] = {name: h for h, name in DELAY_START_OPTIONS.items()}
+

@@ -234,3 +234,22 @@ def test_tub_temperature_and_progress_calculation():
     assert state.cycle_progress == 59.4
     assert state.door_locked is True
     assert state.has_problem is False
+    assert state.delay_start_minutes == 0
+    assert state.is_delay_start is False
+
+
+def test_delay_start_parsing():
+    """Verify parsing of delay start registers (bytes 12-13) and state code."""
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    # Set delay: 2 hours (byte 12 = 2), 30 minutes (byte 13 = 30 = 0x1E)
+    raw[12] = 2
+    raw[13] = 30
+    raw[30] = 20  # MachineState.DELAY_START
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+
+    state = parse_status_frame(bytes(raw))
+    assert state.delay_start_minutes == 150  # 2*60 + 30
+    assert state.is_delay_start is True
+    assert state.state_name == "Delay Start"
+

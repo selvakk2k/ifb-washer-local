@@ -144,8 +144,16 @@ class WasherState:
     total_program_minutes: int = 0
     cycle_progress: float = 0.0
     tub_clean_required: bool = False
+    delay_start_minutes: int = 0
     error_code: str = ""
     error_description: str = ""
+
+    @property
+    def is_delay_start(self) -> bool:
+        """Return True if the machine is waiting in Delay Start countdown."""
+        return self.state_code == MachineState.DELAY_START or (
+            self.delay_start_minutes > 0 and self.state_code == MachineState.STANDBY
+        )
 
     @property
     def water_temperature_c(self) -> int:
@@ -337,6 +345,10 @@ def parse_status_frame(
     temp_opt = data[10]
     temp_name = TEMPERATURE_OPTIONS.get(temp_opt, f"{temp_opt}")
 
+    delay_h = data[12] if len(data) > 12 else 0
+    delay_m = data[13] if len(data) > 13 else 0
+    delay_start_minutes = (delay_h * 60) + delay_m
+
     child_lock_active = bool(data[15])
     rem_h = data[17]
     rem_m = data[18]
@@ -406,6 +418,7 @@ def parse_status_frame(
         total_program_minutes=total_program_minutes,
         cycle_progress=cycle_progress,
         tub_clean_required=tub_clean_required,
+        delay_start_minutes=delay_start_minutes,
         error_code=error_code,
         error_description=error_desc,
     )
