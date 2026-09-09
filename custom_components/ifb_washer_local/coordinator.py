@@ -164,6 +164,18 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
                 self.update_interval = timedelta(seconds=target_interval)
                 self._current_interval = target_interval
 
+            _LOGGER.debug(
+                "Coordinator poll (%s): state='%s'(%d), is_running=%s, door_locked=%s, prog='%s'(%d), rem=%dm",
+                self.client.host,
+                state.state_name,
+                state.state_code,
+                state.is_running,
+                state.door_locked,
+                state.program_name,
+                state.program_code,
+                state.remaining_minutes,
+            )
+
             return state
         except (IFBTimeoutError, IFBConnectionError) as err:
             raise UpdateFailed(

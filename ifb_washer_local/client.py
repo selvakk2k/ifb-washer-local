@@ -70,6 +70,7 @@ class IFBWasherClient:
         url = f"http://{self.host}:{self.port}{GAINSPAN_PROFILE_ENDPOINT}?t={timestamp}"
         headers = {"Content-Type": "multipart/form-data"}
 
+        _LOGGER.debug("Sending raw command to %s: %s", self.host, payload.hex())
         try:
             async with session.post(
                 url,
@@ -79,7 +80,9 @@ class IFBWasherClient:
             ) as response:
                 if response.status != 200:
                     raise IFBConnectionError(f"HTTP request returned status {response.status}")
-                return await response.read()
+                data = await response.read()
+                _LOGGER.debug("Received raw response from %s (%d bytes): %s", self.host, len(data), data.hex())
+                return data
         except asyncio.TimeoutError as err:
             raise IFBTimeoutError(f"Timed out communicating with washer at {self.host}") from err
         except aiohttp.ClientError as err:
@@ -89,7 +92,21 @@ class IFBWasherClient:
         """Query the washer and return the current state."""
         query_pkt = build_status_query()
         resp_bytes = await self._send_raw_command(query_pkt)
-        return parse_status_frame(resp_bytes, program_map=self.program_map)
+        state = parse_status_frame(resp_bytes, program_map=self.program_map)
+        _LOGGER.debug(
+            "Decoded telemetry from %s: prog='%s'(%d) state='%s'(%d) rem=%dm door_locked=%s raw[31]=%d rpm=%d temp=%d°C",
+            self.host,
+            state.program_name,
+            state.program_code,
+            state.state_name,
+            state.state_code,
+            state.remaining_minutes,
+            state.door_locked,
+            resp_bytes[31] if len(resp_bytes) > 31 else -1,
+            state.motor_rpm,
+            state.water_temperature_c,
+        )
+        return state
 
     async def select_program(self, program_code: int, spin_rpm: int = 1000, temp_c: int = 40) -> WasherState:
         """Select a wash program and return the updated state."""
