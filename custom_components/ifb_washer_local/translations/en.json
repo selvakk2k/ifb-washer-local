@@ -40,8 +40,8 @@
         "title": "Confirm Current Program",
         "description": "Your machine reports active program **{active_name}**.\n\nEnsure the display is ON (turn on the power button on the panel if it is off).\n\nDoes your machine's screen or indicator show **{active_name}**?",
         "menu_options": {
-          "verify_phase1": "Display Matches (Continue Test)",
-          "retry_power": "Display is Off (Retry Power On)",
+          "verify_phase1": "Display Matches",
+          "retry_power": "Display Off (Retry Power)",
           "skip_verification": "Skip Verification"
         }
       },
@@ -49,7 +49,7 @@
         "title": "Same-Side Test",
         "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the same program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
-          "verify_phase2": "Display Matches (Next Test)",
+          "verify_phase2": "Display Matches",
           "skip_verification": "Skip Verification"
         }
       },
@@ -57,17 +57,17 @@
         "title": "Opposite-Side Test",
         "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the opposite program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
-          "finish_verification": "Display Matches (Continue to Calibration)",
+          "finish_verification": "Display Matches",
           "skip_verification": "Skip Verification"
         }
       },
       "calibrate": {
         "title": "Calibrate Capabilities",
-        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Test (~20-30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Test (~1.5-2m)**: Full probe across all programs on the dial.",
+        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Probe (~30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Probe (~2m)**: Full probe across all programs on the dial.",
         "menu_options": {
-          "calibrate_standard": "Standard (Skip live test)",
-          "calibrate_quick": "Quick Test (~20-30s)",
-          "calibrate_detailed": "Detailed Test (~1.5-2m)"
+          "calibrate_standard": "Standard (Skip Test)",
+          "calibrate_quick": "Quick Probe (~30s)",
+          "calibrate_detailed": "Detailed Probe (~2m)"
         }
       },
       "custom": {
