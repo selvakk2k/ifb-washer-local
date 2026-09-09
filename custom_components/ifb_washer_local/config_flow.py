@@ -15,25 +15,6 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 try:
-    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
-        DEFAULT_PORT,
-        ApplianceFamily,
-        FAMILY_PROGRAM_MATRICES,
-        IFBConnectionError,
-        IFBError,
-        IFBTimeoutError,
-        IFBWasherClient,
-        PROGRAM_CODES_FRONT_LOAD,
-        PROGRAM_CODES_TOP_LOAD,
-        PROGRAM_CODES_WASHER_DRYER,
-        WasherState,
-    )
-    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
-        DIAL_SIDES_BY_FAMILY,
-        MACHINE_TYPE_LABELS,
-        MODELS_BY_FAMILY,
-    )
-except ImportError:
     from .ifb_washer_local import (
         DEFAULT_PORT,
         ApplianceFamily,
@@ -48,6 +29,25 @@ except ImportError:
         WasherState,
     )
     from .ifb_washer_local.const import (
+        DIAL_SIDES_BY_FAMILY,
+        MACHINE_TYPE_LABELS,
+        MODELS_BY_FAMILY,
+    )
+except (ImportError, ValueError):
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+        DEFAULT_PORT,
+        ApplianceFamily,
+        FAMILY_PROGRAM_MATRICES,
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+        IFBWasherClient,
+        PROGRAM_CODES_FRONT_LOAD,
+        PROGRAM_CODES_TOP_LOAD,
+        PROGRAM_CODES_WASHER_DRYER,
+        WasherState,
+    )
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
         DIAL_SIDES_BY_FAMILY,
         MACHINE_TYPE_LABELS,
         MODELS_BY_FAMILY,

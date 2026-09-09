@@ -12,23 +12,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 try:
-    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
-        ApplianceFamily,
-        DELAY_START_NAME_TO_CODE,
-        DELAY_START_OPTIONS,
-        DRY_NAME_TO_CODE,
-        DRY_OPTIONS,
-        EXTRA_RINSE_NAME_TO_CODE,
-        EXTRA_RINSE_OPTIONS,
-        SPIN_SPEED_OPTIONS,
-        TEMPERATURE_OPTIONS,
-    )
-    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
-        IFBConnectionError,
-        IFBError,
-        IFBTimeoutError,
-    )
-except ImportError:
     from .ifb_washer_local.const import (
         ApplianceFamily,
         DELAY_START_NAME_TO_CODE,
@@ -41,6 +24,23 @@ except ImportError:
         TEMPERATURE_OPTIONS,
     )
     from .ifb_washer_local.exceptions import (
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
+except (ImportError, ValueError):
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        ApplianceFamily,
+        DELAY_START_NAME_TO_CODE,
+        DELAY_START_OPTIONS,
+        DRY_NAME_TO_CODE,
+        DRY_OPTIONS,
+        EXTRA_RINSE_NAME_TO_CODE,
+        EXTRA_RINSE_OPTIONS,
+        SPIN_SPEED_OPTIONS,
+        TEMPERATURE_OPTIONS,
+    )
+    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
         IFBConnectionError,
         IFBError,
         IFBTimeoutError,

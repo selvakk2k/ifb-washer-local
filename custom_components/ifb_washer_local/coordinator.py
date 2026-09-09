@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.util import dt as dt_util
 
 try:
-    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+    from .ifb_washer_local import (
         ApplianceFamily,
         FAMILY_PROGRAM_MATRICES,
         IFBConnectionError,
@@ -26,8 +26,8 @@ try:
         PROGRAM_CODES_WASHER_DRYER,
         WasherState,
     )
-except ImportError:
-    from .ifb_washer_local import (
+except (ImportError, ValueError):
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
         ApplianceFamily,
         FAMILY_PROGRAM_MATRICES,
         IFBConnectionError,

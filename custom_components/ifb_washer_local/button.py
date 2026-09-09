@@ -13,14 +13,14 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 try:
-    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
+    from .ifb_washer_local import (
         IFBConnectionError,
         IFBError,
         IFBTimeoutError,
         IFBWasherClient,
     )
-except ImportError:
-    from .ifb_washer_local import (
+except (ImportError, ValueError):
+    from ifb_washer_local import (  # type: ignore[import-not-found, import-untyped]
         IFBConnectionError,
         IFBError,
         IFBTimeoutError,

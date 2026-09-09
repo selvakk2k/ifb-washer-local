@@ -16,23 +16,6 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 try:
-    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
-        HIL_OPTION_ANTI_CREASE,
-        HIL_OPTION_AROMA,
-        HIL_OPTION_ECO,
-        HIL_OPTION_HOT_RINSE,
-        HIL_OPTION_PRE_WASH,
-        HIL_OPTION_RINSE_HOLD,
-        HIL_OPTION_SOAK,
-        HIL_OPTION_STEAM,
-        HIL_OPTION_TIME_SAVER,
-    )
-    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
-        IFBConnectionError,
-        IFBError,
-        IFBTimeoutError,
-    )
-except ImportError:
     from .ifb_washer_local.const import (
         HIL_OPTION_ANTI_CREASE,
         HIL_OPTION_AROMA,
@@ -45,6 +28,23 @@ except ImportError:
         HIL_OPTION_TIME_SAVER,
     )
     from .ifb_washer_local.exceptions import (
+        IFBConnectionError,
+        IFBError,
+        IFBTimeoutError,
+    )
+except (ImportError, ValueError):
+    from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
+        HIL_OPTION_ANTI_CREASE,
+        HIL_OPTION_AROMA,
+        HIL_OPTION_ECO,
+        HIL_OPTION_HOT_RINSE,
+        HIL_OPTION_PRE_WASH,
+        HIL_OPTION_RINSE_HOLD,
+        HIL_OPTION_SOAK,
+        HIL_OPTION_STEAM,
+        HIL_OPTION_TIME_SAVER,
+    )
+    from ifb_washer_local.exceptions import (  # type: ignore[import-not-found, import-untyped]
         IFBConnectionError,
         IFBError,
         IFBTimeoutError,
