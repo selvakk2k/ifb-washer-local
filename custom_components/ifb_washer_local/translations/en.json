@@ -2,14 +2,14 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to IFB Washing Machine",
-        "description": "Enter the local network IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.",
+        "title": "Connect Washer",
+        "description": "Enter the local IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.",
         "data": {
           "host": "IP Address",
           "port": "Port"
         },
         "data_description": {
-          "host": "Local static IP or DHCP reserved address of the washing machine on your home Wi-Fi network (e.g. 192.168.0.100).",
+          "host": "Local static or DHCP reserved IP address of the washing machine on your home Wi-Fi network.",
           "port": "Local HTTP port used by the GainSpan module (default: 80)."
         }
       },
@@ -26,7 +26,7 @@
           "model": "Model Series"
         },
         "data_description": {
-          "model": "Specific model line (e.g. WD Executive ZXS, TurboDry, Senator, or custom)."
+          "model": "Specific model line (or choose custom to enter manually)."
         }
       },
       "custom_model_text": {
@@ -37,15 +37,16 @@
         }
       },
       "verify_initial": {
-        "title": "Step 1: Confirm Current Program",
-        "description": "Your machine is currently reporting **{active_name}** (Code {active_code}).\n\nDoes your machine's screen or indicator show **{active_name}**?",
+        "title": "Confirm Current Program",
+        "description": "Your machine reports active program **{active_name}**.\n\nEnsure the display is ON (turn on the power button on the panel if it is off).\n\nDoes your machine's screen or indicator show **{active_name}**?",
         "menu_options": {
-          "verify_phase1": "Confirm Current Program",
+          "verify_phase1": "Display Matches (Continue Test)",
+          "retry_power": "Display is Off (Retry Power On)",
           "skip_verification": "Skip Verification"
         }
       },
       "verify_phase1": {
-        "title": "Step 2: Same-Side Test",
+        "title": "Same-Side Test",
         "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the same program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
           "verify_phase2": "Display Matches (Next Test)",
@@ -53,7 +54,7 @@
         }
       },
       "verify_phase2": {
-        "title": "Step 3: Opposite-Side Test",
+        "title": "Opposite-Side Test",
         "description": "Home Assistant sent a test command to select **{target_name}** (Code {target_code}) from the opposite program group.\n\nDoes your machine's screen or indicator show **{target_name}**?",
         "menu_options": {
           "finish_verification": "Display Matches (Continue to Calibration)",
@@ -61,8 +62,8 @@
         }
       },
       "calibrate": {
-        "title": "Would you like to calibrate your device?",
-        "description": "Calibration sends safe test commands to probe your machine's exact physical capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, and dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use pre-calibrated catalog settings.\n- **Quick Test (~20-30s)**: Fast probe on core daily programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Test (~1.5-2m)**: Full probe across all programs on the dial.",
+        "title": "Calibrate Capabilities",
+        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Test (~20-30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Test (~1.5-2m)**: Full probe across all programs on the dial.",
         "menu_options": {
           "calibrate_standard": "Standard (Skip live test)",
           "calibrate_quick": "Quick Test (~20-30s)",

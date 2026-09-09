@@ -97,6 +97,57 @@ MACHINE_TYPE_OPTIONS = [
 ]
 
 
+def _get_model_options_for_family(family: str) -> list[selector.SelectOptionDict]:
+    """Get list of model options from ifb_washer_models catalog."""
+    try:
+        try:
+            from ifb_washer_models import get_lookup
+        except ImportError:
+            from .ifb_washer_models import get_lookup
+        lookup = get_lookup()
+        models = lookup.all_models
+
+        filtered: list[str] = []
+        for m in models:
+            arch = str(m.archetype).lower()
+            name = m.model_name.lower()
+            if family == ApplianceFamily.WASHER_DRYER:
+                if "washer_dryer" in arch or "dry" in arch or "turbodry" in name or "wd" in name:
+                    filtered.append(m.model_name)
+            elif family == ApplianceFamily.TOP_LOAD_SMART:
+                if "top_load" in arch or "tl" in arch:
+                    filtered.append(m.model_name)
+            else:  # FRONT_LOAD
+                if not (
+                    "washer_dryer" in arch
+                    or "dry" in arch
+                    or "turbodry" in name
+                    or "wd" in name
+                    or "top_load" in arch
+                    or "tl" in arch
+                ):
+                    filtered.append(m.model_name)
+
+        if not filtered:
+            filtered = MODELS_BY_FAMILY.get(family, [])
+
+        unique_models = sorted(list(dict.fromkeys(filtered)))
+        options = [selector.SelectOptionDict(value=m, label=m) for m in unique_models]
+        options.append(
+            selector.SelectOptionDict(value="custom", label="Other / Custom Model...")
+        )
+        return options
+    except Exception:
+        model_list = MODELS_BY_FAMILY.get(family, ["custom"])
+        return [
+            selector.SelectOptionDict(
+                value=m,
+                label="Other / Custom Model..." if m == "custom" else m,
+            )
+            for m in model_list
+        ]
+
+
 class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for IFB Washer Local."""
 
@@ -107,7 +158,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._host: str = ""
         self._port: int = DEFAULT_PORT
         self._family: str = DEFAULT_FAMILY
-        self._model: str = "WD Executive ZXS"
+        self._model: str = "Executive Plus VX WD 8.5/6.5"
         self._custom_model: str = ""
         self._client: IFBWasherClient | None = None
         self._initial_state: WasherState | None = None
@@ -115,19 +166,18 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._phase1_side: str = "left"
         self._calibrated_profile: dict[str, Any] | None = None
 
-
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 1: Enter local IP address and test connection."""
+        """Enter local IP address and test connection."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             port = int(user_input.get(CONF_PORT, DEFAULT_PORT))
 
-            # Prevent duplicate entries for the same host IP
-            await self.async_set_unique_id(host)
+            # Prevent duplicate entries for the same host IP without locking in-progress retries
+            await self.async_set_unique_id(host, raise_on_progress=False)
             self._abort_if_unique_id_configured()
 
             # Test connection to the machine's Gainspan web server
@@ -152,7 +202,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
 
         schema = vol.Schema(
             {
-                vol.Required(CONF_HOST, default="192.168.0.100"): selector.TextSelector(
+                vol.Required(CONF_HOST): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),
                 vol.Optional(CONF_PORT, default=DEFAULT_PORT): selector.NumberSelector(
@@ -172,7 +222,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_machine_type(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 2: Choose machine category using IFB official terminology."""
+        """Choose machine category using IFB official terminology."""
         if user_input is not None:
             self._family = user_input[CONF_FAMILY]
             return await self.async_step_model()
@@ -198,15 +248,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_model(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 3: Select exact model from the family's catalog."""
-        model_list = MODELS_BY_FAMILY.get(self._family, ["custom"])
-        options = [
-            selector.SelectOptionDict(
-                value=m,
-                label="Other / Custom Model..." if m == "custom" else m,
-            )
-            for m in model_list
-        ]
+        """Select exact model from the family's catalog."""
+        options = _get_model_options_for_family(self._family)
 
         if user_input is not None:
             chosen = user_input[CONF_MODEL]
@@ -215,7 +258,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             self._model = chosen
             return await self.async_step_verify_initial()
 
-        default_model = model_list[0] if model_list else "custom"
+        default_model = options[0]["value"] if options else "custom"
         schema = vol.Schema(
             {
                 vol.Required(CONF_MODEL, default=default_model): selector.SelectSelector(
@@ -263,7 +306,18 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_verify_initial(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 4a: Confirm current program reported by the appliance."""
+        """Confirm current program reported by the appliance with auto power-on."""
+        if self._client:
+            try:
+                state = await self._client.get_state()
+                self._initial_state = state
+                if not state.is_powered_on:
+                    _LOGGER.info("IFB washer display is off; sending power on command to wake panel")
+                    state = await self._client.power_on()
+                    self._initial_state = state
+            except Exception as err:
+                _LOGGER.debug("Initial power check / auto wake exception: %s", err)
+
         prog_map = FAMILY_PROGRAM_MATRICES.get(
             self._family, PROGRAM_CODES_WASHER_DRYER
         )
@@ -276,12 +330,25 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_menu(
             step_id="verify_initial",
-            menu_options=["verify_phase1", "skip_verification"],
+            menu_options=["verify_phase1", "retry_power", "skip_verification"],
             description_placeholders={
                 "active_name": curr_name,
                 "active_code": str(curr_code),
             },
         )
+
+    async def async_step_retry_power(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Retry sending power-on command to wake the appliance display."""
+        if self._client:
+            try:
+                await self._client.power_on()
+                await asyncio.sleep(0.5)
+                self._initial_state = await self._client.get_state()
+            except Exception as err:
+                _LOGGER.debug("Retry power on exception: %s", err)
+        return await self.async_step_verify_initial()
 
     async def async_step_verify_phase1(
         self, user_input: dict[str, Any] | None = None
