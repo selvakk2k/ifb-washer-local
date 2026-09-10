@@ -8,6 +8,7 @@ import logging
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
@@ -202,11 +203,20 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         return "IFB Smart Washing Machine"
 
     @property
+    def device_name(self) -> str:
+        """Return the device display name."""
+        if self.entry:
+            custom_name = self.entry.data.get(CONF_NAME) or getattr(self.entry, "title", None)
+            if custom_name:
+                return custom_name
+        return f"IFB {self.model_name} ({self.client.host})"
+
+    @property
     def device_info(self) -> DeviceInfo:
         """Return standardized device registry information."""
         return DeviceInfo(
             identifiers={(DOMAIN, self.client.host)},
-            name=f"IFB {self.model_name} ({self.client.host})",
+            name=self.device_name,
             manufacturer="IFB Industries",
             model=self.model_name,
             configuration_url=f"http://{self.client.host}",

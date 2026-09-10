@@ -9,7 +9,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -164,6 +164,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize config flow state."""
         self._host: str = ""
         self._port: int = DEFAULT_PORT
+        self._name: str | None = None
         self._family: str = DEFAULT_FAMILY
         self._model: str = "Executive Plus VX WD 8.5/6.5"
         self._custom_model: str = ""
@@ -182,6 +183,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host = user_input[CONF_HOST].strip()
             port = int(user_input.get(CONF_PORT, DEFAULT_PORT))
+            self._name = user_input.get(CONF_NAME, "").strip() or None
 
             # Prevent duplicate entries for the same host IP without locking in-progress retries
             await self.async_set_unique_id(host, raise_on_progress=False)
@@ -216,6 +218,9 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                     selector.NumberSelectorConfig(
                         min=1, max=65535, mode=selector.NumberSelectorMode.BOX
                     )
+                ),
+                vol.Optional(CONF_NAME): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),
             }
         )
@@ -615,7 +620,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
 
     def _create_entry(self) -> ConfigFlowResult:
         """Create the config entry."""
-        title = f"IFB {self._model} ({self._host})"
+        title = self._name or f"IFB {self._model} ({self._host})"
         data: dict[str, Any] = {
             CONF_HOST: self._host,
             CONF_PORT: self._port,
@@ -623,6 +628,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_MODEL: self._model,
             CONF_CUSTOM_MODEL: self._custom_model,
         }
+        if self._name:
+            data[CONF_NAME] = self._name
         if self._calibrated_profile:
             data[CONF_CALIBRATED_PROFILE] = self._calibrated_profile
 
@@ -666,9 +673,39 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         entry = self._entry
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
 
+        current_name = entry.data.get(CONF_NAME, "")
+        current_model = entry.options.get(
+            CONF_MODEL,
+            entry.data.get(CONF_MODEL, "WD Executive ZXS"),
+        )
+        current_standby = entry.options.get(
+            CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY
+        )
+        current_running = entry.options.get(
+            CONF_SCAN_INTERVAL_RUNNING, DEFAULT_SCAN_INTERVAL_RUNNING
+        )
+
         if user_input is not None:
+            new_name = user_input.get(CONF_NAME, "").strip() or None
+            new_model = user_input.get(CONF_MODEL, current_model).strip()
+
+            # Update entry data with new name and model if changed
+            new_data = dict(entry.data)
+            new_data[CONF_MODEL] = new_model
+            if new_name:
+                new_data[CONF_NAME] = new_name
+            else:
+                new_data.pop(CONF_NAME, None)
+
+            new_title = new_name or f"IFB {new_model} ({entry.data.get(CONF_HOST)})"
+            self.hass.config_entries.async_update_entry(
+                entry,
+                title=new_title,
+                data=new_data,
+            )
+
             self._options_data = {
-                CONF_MODEL: user_input[CONF_MODEL],
+                CONF_MODEL: new_model,
                 CONF_SCAN_INTERVAL_STANDBY: user_input[CONF_SCAN_INTERVAL_STANDBY],
                 CONF_SCAN_INTERVAL_RUNNING: user_input[CONF_SCAN_INTERVAL_RUNNING],
             }
@@ -698,19 +735,13 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                 data=self._options_data,
             )
 
-        current_standby = entry.options.get(
-            CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY
-        )
-        current_running = entry.options.get(
-            CONF_SCAN_INTERVAL_RUNNING, DEFAULT_SCAN_INTERVAL_RUNNING
-        )
-        current_model = entry.options.get(
-            CONF_MODEL,
-            entry.data.get(CONF_MODEL, "WD Executive ZXS"),
-        )
-
         schema = vol.Schema(
             {
+                vol.Optional(
+                    CONF_NAME, default=current_name
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+                ),
                 vol.Required(
                     CONF_MODEL, default=current_model
                 ): selector.TextSelector(

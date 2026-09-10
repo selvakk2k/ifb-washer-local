@@ -474,3 +474,42 @@ async def test_options_flow_restore_profile(mock_hass):
     mock_coordinator.async_restore_profile.assert_awaited_once()
 
 
+@pytest.mark.asyncio
+async def test_config_flow_with_custom_name(mock_hass):
+    """Test config flow creating entry with custom friendly name."""
+    from homeassistant.const import CONF_NAME
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.program_code = 13
+
+    with (
+        patch(
+            "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+            new_callable=AsyncMock,
+            return_value=mock_state,
+        ),
+        patch.object(flow, "async_set_unique_id", new_callable=AsyncMock),
+    ):
+        result = await flow.async_step_user({
+            CONF_HOST: "192.168.0.105",
+            CONF_PORT: 80,
+            CONF_NAME: "Laundry Room Washer",
+        })
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "machine_type"
+
+        result = await flow.async_step_machine_type({CONF_FAMILY: ApplianceFamily.WASHER_DRYER})
+        assert result["type"] == FlowResultType.FORM
+
+        result = await flow.async_step_model({CONF_MODEL: "WD Executive ZXS"})
+        assert result["type"] == FlowResultType.MENU
+
+        result = await flow.async_step_calibrate_standard()
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["title"] == "Laundry Room Washer"
+        assert result["data"][CONF_NAME] == "Laundry Room Washer"
+
+
+

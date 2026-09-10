@@ -6,11 +6,13 @@
         "description": "Enter the local IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.",
         "data": {
           "host": "IP Address",
-          "port": "Port"
+          "port": "Port",
+          "name": "Custom Friendly Name (Optional)"
         },
         "data_description": {
           "host": "Local static or DHCP reserved IP address of the washing machine on your home Wi-Fi network.",
-          "port": "Local HTTP port used by the GainSpan module (default: 80)."
+          "port": "Local HTTP port used by the GainSpan module (default: 80).",
+          "name": "Custom display name for the device in Home Assistant (e.g. 'Washer' or 'Laundry Room Washer'). If blank, the model name is used."
         }
       },
       "machine_type": {
@@ -102,12 +104,14 @@
         "title": "IFB Washer Local Options",
         "description": "Adjust operational scan intervals and model settings:",
         "data": {
+          "name": "Custom Friendly Name",
           "model": "Appliance Model Name",
           "scan_interval_standby": "Standby Polling Interval",
           "scan_interval_running": "Active Wash Polling Interval",
           "calibration_action": "Hardware Capability Calibration"
         },
         "data_description": {
+          "name": "Custom display name for the device in Home Assistant (leave blank to use default model name).",
           "model": "Display model name shown in Home Assistant device registry.",
           "scan_interval_standby": "Polling interval in seconds while the washer is idle or in standby (default: 15s).",
           "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s).",
