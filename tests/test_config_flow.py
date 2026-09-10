@@ -512,4 +512,36 @@ async def test_config_flow_with_custom_name(mock_hass):
         assert result["data"][CONF_NAME] == "Laundry Room Washer"
 
 
+@pytest.mark.asyncio
+async def test_setup_entry_registers_update_listener_and_reload(mock_hass):
+    """Test that async_setup_entry registers an update listener and async_reload_entry reloads config entry."""
+    from custom_components.ifb_washer_local import async_reload_entry, async_setup_entry
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.data = {CONF_HOST: "192.168.0.100", CONF_PORT: 80}
+    mock_entry.options = {}
+    mock_entry.async_on_unload = MagicMock()
+    mock_entry.add_update_listener = MagicMock(return_value="listener_unsub")
+
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
+    mock_hass.config_entries.async_reload = AsyncMock(return_value=True)
+
+    with (
+        patch(
+            "custom_components.ifb_washer_local.coordinator.IFBWasherCoordinator.async_config_entry_first_refresh",
+            new_callable=AsyncMock,
+        ),
+    ):
+        result = await async_setup_entry(mock_hass, mock_entry)
+        assert result is True
+        mock_entry.add_update_listener.assert_called_once_with(async_reload_entry)
+        mock_entry.async_on_unload.assert_called_with("listener_unsub")
+
+        # Test reload helper
+        await async_reload_entry(mock_hass, mock_entry)
+        mock_hass.config_entries.async_reload.assert_awaited_once_with("test_entry_123")
+
+
+
 
