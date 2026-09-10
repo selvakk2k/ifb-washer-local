@@ -94,7 +94,12 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 1. In Home Assistant, navigate to **Settings** > **Devices & Services**.
 2. Click **Add Integration** and search for **IFB Washer Local**.
 3. Enter the local IP address assigned to your washing machine (e.g. `192.168.0.100`) and click **Submit**.
-4. *(Recommended)* Reserve a static IP for your washing machine in your home Wi-Fi router settings.
+4. The integration automatically queries the appliance and presents the **Initial Capability Setup Wizard**:
+   * **Use Models Database**: Automatically matches the model against the [`ifb-washer-models`](https://pypi.org/project/ifb-washer-models/) database for instant capability provisioning.
+   * **Calibrate Hardware Now**: Run a live probe (Quick, Simple, or Detailed) directly against physical firmware while in Standby.
+   * **Import Saved Profile**: Paste a previously exported JSON capability profile envelope.
+   * **Skip (Safe Defaults)**: Use standard front-load / washer-dryer default limits.
+5. *(Recommended)* Reserve a static DHCP IP address for your washing machine in your home Wi-Fi router settings.
 
 ---
 
@@ -102,7 +107,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 
 The integration can probe your physical appliance while in Standby to build a model-accurate capability map (allowed temperatures, spin speeds, dry modes, and modifiers per program).
 
-### Running Calibration
+### Running Calibration from Options
 1. Navigate to **Settings** > **Devices & Services** > **IFB Washer Local** > **Configure**.
 2. Choose **Calibrate Hardware Capabilities Profile** and select a probing mode:
    * **Quick (~2 minutes)**: Probes 8 core wash programs.
@@ -121,7 +126,7 @@ The integration can probe your physical appliance while in Standby to build a mo
 
 ### Sensors
 * **Machine State**: Current cycle phase (Standby, Pre-wash, Main Wash, Rinse, Final Spin, Complete, etc.)
-* **Active Program**: Selected wash cycle (Mix / Daily, Cotton, Tub Clean, etc.)
+* **Active Program**: Selected wash cycle (Mix / Daily, Cotton, Tub Clean, etc.). Dynamically exposes the active program's capability limits in `extra_state_attributes` (`allowed_temps`, `allowed_spins`, `allowed_dry_modes`, `steam_behavior`, modifiers) for dynamic Lovelace card filtering.
 * **Time Remaining**: Cycle countdown in minutes.
 * **Motor Speed**: Real-time drum rotation speed in RPM.
 * **Water Temperature**: Water temperature in drum (°C).
@@ -136,10 +141,10 @@ The integration can probe your physical appliance while in Standby to build a mo
 ### Selectors
 * **Program**: Remote selection of wash programs (`select.program_select`).
 * **Spin Speed**: Remote adjustment of spin speed (`select.spin_speed_select` - No Spin, 400, 600, 800, 1000, 1200, 1400 RPM).
-* **Temperature**: Remote adjustment of wash temperature (`select.temperature_select` - Cold, 30°C, 40°C, 60°C, 95°C).
+* **Temperature**: Remote adjustment of wash temperature (`select.temperature_select` - Cold, 20°C, 30°C, 40°C, 60°C, 95°C).
 * **Delay Start**: Remote selection of delay start timer (`select.delay_start_select` - No Delay, 30 Min, 1 to 19 Hours).
 * **Extra Rinse**: Remote selection of additional rinses (`select.extra_rinse_select` - 0 (None), +1 Rinse, +2 Rinses, +3 Rinses).
-* **Dry Mode**: Remote selection of drying profiles on washer-dryer models (`select.dry_mode_select` - Off, Cupboard Dry, Iron Dry, Eco Dry, Gentle Dry, Time Dry).
+* **Dry Mode**: Remote selection of drying profiles on washer-dryer models (`select.dry_mode_select` - No Dry, Cupboard Dry, Iron Dry, 30 Minutes, 1 Hour, etc.).
 
 ### Controls
 * **Power Switch**: Toggle washer power state (`switch.power` - On / Low-power Standby).
@@ -168,7 +173,7 @@ For a complete reference on all available programs (including Express 15', Refre
 
 ## Companion Ecosystem & Models Database
 
-* **Hardware Database & Program Gating**: For programmatic model lookups, rotary selector switch detents, and capability gating rules, see the companion Python database [`ifb-washer-models`](https://github.com/selvakk2k/ifb-washer-models).
+* **Hardware Database & Program Gating**: For programmatic model lookups, rotary selector switch detents, and capability gating rules, see the companion package [`ifb-washer-models` on PyPI](https://pypi.org/project/ifb-washer-models/) and [GitHub](https://github.com/selvakk2k/ifb-washer-models).
 * **Lovelace Frontend Card**: For the dynamic radial drum animation and smart appliance UI, install the companion [`ifb-washer-card`](https://github.com/selvakk2k/ifb-washer-card).
 * **Wash Guide & Programs**: For detailed program cycle specifications and modifiers, consult the [Operation & Wash Guide](docs/WASH_GUIDE.md).
 
