@@ -1,5 +1,6 @@
 """Unit tests for IFB Washer Local coordinator calculations and sensors."""
 
+import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -605,4 +606,46 @@ def test_select_temperature_dynamic_fallback():
     temp_select = IFBWasherTemperatureSelect(coord)
     assert "20°C" in temp_select.options
     assert temp_select.current_option == "20°C"
+
+
+@pytest.mark.asyncio
+async def test_select_spin_speed_linked_rinse_hold():
+    """Verify spin speed select properly sets linked Rinse Hold options."""
+    from custom_components.ifb_washer_local.select import IFBWasherSpinSpeedSelect
+    from ifb_washer_local.const import ProgramCapabilities
+
+    hass = MagicMock(spec=HomeAssistant)
+    hass.loop = asyncio.get_running_loop()
+    client = MagicMock()
+    client.host = "192.168.0.100"
+    client.set_spin_speed = AsyncMock()
+    client.set_rinse_hold = AsyncMock()
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord.async_request_refresh = AsyncMock()
+    state = MagicMock(spec=WasherState)
+    state.program_code = 13
+    state.program_name = "Mix / Daily"
+    state.temperature_code = 2
+    state.spin_speed_name = "1000 RPM"
+    state.rinse_hold = True
+    coord.data = state
+    coord.calibrated_caps = {
+        13: ProgramCapabilities(
+            allowed_temps=("Cold", "20°C", "30°C", "40°C"),
+            allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1000 RPM + Rinse Hold"),
+        )
+    }
+
+    spin_select = IFBWasherSpinSpeedSelect(coord)
+    assert "1000 RPM + Rinse Hold" in spin_select.options
+    assert spin_select.current_option == "1000 RPM + Rinse Hold"
+
+    # Select linked option
+    new_state = MagicMock(spec=WasherState)
+    new_state.rinse_hold = False
+    client.set_spin_speed.return_value = new_state
+    await spin_select.async_select_option("1000 RPM + Rinse Hold")
+    client.set_spin_speed.assert_called_with(6, program_code=13, temp_code=2)
+    client.set_rinse_hold.assert_called_with(True)
 

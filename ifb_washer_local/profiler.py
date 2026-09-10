@@ -73,18 +73,23 @@ async def probe_single_program(
             reported_spin_code = raw[8] if len(raw) > 8 else st.spin_speed_code
             rinse_hold_active = st.rinse_hold or (bool(raw[11] & 0x04) if len(raw) > 11 else False)
 
-            # If sending a spin code triggered Rinse Hold or reverted, it is not a pure spin speed
-            if reported_spin_code == spin_code and not rinse_hold_active:
-                name = SPIN_SPEED_OPTIONS.get(spin_code)
-                if name and name not in allowed_spins:
-                    allowed_spins.append(name)
-            elif rinse_hold_active:
+            # If sending a spin code triggered Rinse Hold, capture as linked speed + Rinse Hold option
+            if rinse_hold_active:
+                reported_name = SPIN_SPEED_OPTIONS.get(reported_spin_code)
+                if reported_name and reported_name != "No Spin":
+                    option_label = f"{reported_name} + Rinse Hold"
+                    if option_label not in allowed_spins:
+                        allowed_spins.append(option_label)
                 # Reset Rinse Hold modifier so state does not taint subsequent candidate probes
                 try:
                     await client.set_rinse_hold(False)
                     await asyncio.sleep(delay_between_cmds)
                 except Exception:
                     pass
+            elif reported_spin_code == spin_code:
+                name = SPIN_SPEED_OPTIONS.get(spin_code)
+                if name and name not in allowed_spins:
+                    allowed_spins.append(name)
         except Exception as exc:
             _LOGGER.debug("Spin probe error for code %d: %s", spin_code, exc)
 
@@ -419,3 +424,19 @@ def save_profile_backup(
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
     return filepath
+
+
+def list_profile_files(config_dir: str) -> list[str]:
+    """List all saved profile JSON filenames in config_dir/ifb_washer_profiles/."""
+    profiles_dir = os.path.join(config_dir, "ifb_washer_profiles")
+    if not os.path.isdir(profiles_dir):
+        return []
+    try:
+        files = [
+            f for f in os.listdir(profiles_dir)
+            if f.endswith(".json") and os.path.isfile(os.path.join(profiles_dir, f))
+        ]
+        files.sort()
+        return files
+    except Exception:
+        return []

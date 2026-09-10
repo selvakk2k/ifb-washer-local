@@ -158,11 +158,22 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
         """Return the current spin speed setting."""
         if self.coordinator.data is None:
             return None
-        return self.coordinator.data.spin_speed_name
+        spin_name = self.coordinator.data.spin_speed_name
+        if not spin_name:
+            return None
+        if self.coordinator.data.rinse_hold and spin_name != "No Spin":
+            combined = f"{spin_name} + Rinse Hold"
+            caps = _get_capabilities_for_coordinator(self.coordinator)
+            if caps and caps.allowed_spins and combined in caps.allowed_spins:
+                return combined
+        return spin_name
 
     async def async_select_option(self, option: str) -> None:
         """Change the spin speed."""
-        spin_code = SPIN_NAME_TO_CODE.get(option)
+        is_rinse_hold = option.endswith(" + Rinse Hold")
+        base_option = option.replace(" + Rinse Hold", "") if is_rinse_hold else option
+
+        spin_code = SPIN_NAME_TO_CODE.get(base_option)
         if spin_code is None:
             _LOGGER.warning("Unknown spin speed option selected: %s", option)
             return
@@ -171,11 +182,26 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
         current_temp = self.coordinator.data.temperature_code if self.coordinator.data else None
 
         try:
+            # If selecting a pure spin speed and Rinse Hold was on, disable Rinse Hold first
+            if not is_rinse_hold and self.coordinator.data and self.coordinator.data.rinse_hold:
+                try:
+                    await self.coordinator.client.set_rinse_hold(False)
+                except Exception:
+                    pass
+
             updated_state = await self.coordinator.client.set_spin_speed(
                 spin_code,
                 program_code=current_prog,
                 temp_code=current_temp,
             )
+
+            # If selecting linked Rinse Hold option, ensure Rinse Hold bit is set
+            if is_rinse_hold and not updated_state.rinse_hold:
+                try:
+                    updated_state = await self.coordinator.client.set_rinse_hold(True)
+                except Exception:
+                    pass
+
             self.coordinator.async_set_updated_data(updated_state)
             await self.coordinator.async_request_refresh()
         except (IFBTimeoutError, IFBConnectionError) as err:

@@ -148,9 +148,11 @@ async def test_probe_single_program_detects_spin_and_temp():
         delay_between_cmds=0.001,
     )
 
-    # 1200 RPM and 1400 RPM should NOT be in allowed spins because they triggered rinse hold
+    # Pure 1200 RPM and 1400 RPM should NOT be in allowed spins, but linked Rinse Hold options should be present
     assert "1200 RPM" not in caps.allowed_spins
     assert "1400 RPM" not in caps.allowed_spins
+    assert "1200 RPM + Rinse Hold" in caps.allowed_spins
+    assert "1400 RPM + Rinse Hold" in caps.allowed_spins
     assert "1000 RPM" in caps.allowed_spins
     assert "800 RPM" in caps.allowed_spins
     assert "600 RPM" in caps.allowed_spins

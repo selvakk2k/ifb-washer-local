@@ -407,10 +407,10 @@ async def test_options_flow_export_profile(mock_hass):
         CONF_MODEL: "WD Executive ZXS",
         "scan_interval_standby": 15,
         "scan_interval_running": 5,
-        "calibration_action": "export",
+        "calibration_action": "manage_profile",
     })
     assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "export_profile"
+    assert result["step_id"] == "manage_profile"
 
 
 @pytest.mark.asyncio
@@ -427,6 +427,8 @@ async def test_options_flow_restore_profile(mock_hass):
     mock_entry.options = {}
 
     mock_coordinator = MagicMock()
+    mock_coordinator.calibrated_caps = {}
+    mock_coordinator.calibrated_meta = {}
     mock_coordinator.async_restore_profile = AsyncMock(return_value={})
     mock_hass.data = {"ifb_washer_local": {"test_entry_123": mock_coordinator}}
 
@@ -438,10 +440,10 @@ async def test_options_flow_restore_profile(mock_hass):
         CONF_MODEL: "WD Executive ZXS",
         "scan_interval_standby": 15,
         "scan_interval_running": 5,
-        "calibration_action": "restore",
+        "calibration_action": "manage_profile",
     })
     assert init_res["type"] == FlowResultType.FORM
-    assert init_res["step_id"] == "restore_profile"
+    assert init_res["step_id"] == "manage_profile"
 
     # Submit valid profile JSON
     profile_json = json.dumps({

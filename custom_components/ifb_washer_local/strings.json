@@ -118,6 +118,20 @@
         "title": "Calibrating Capabilities",
         "description": "Probing machine capabilities. Please wait while Home Assistant verifies your hardware options."
       },
+      "manage_profile": {
+        "title": "Manage Profile (Export / Import / Edit)",
+        "description": "View, edit, or upload custom hardware capability profiles. A standalone copy is automatically saved to `{backup_file}`.",
+        "data": {
+          "saved_profile": "Saved Profile on Disk",
+          "profile_file": "Upload Profile File (.json)",
+          "profile_json": "Profile JSON Data"
+        },
+        "data_description": {
+          "saved_profile": "Select an existing profile file from /config/ifb_washer_profiles/.",
+          "profile_file": "Upload a .json profile exported from another instance or backup.",
+          "profile_json": "Inspect or edit program capabilities directly."
+        }
+      },
       "export_profile": {
         "title": "Export Calibrated Profile",
         "description": "Active hardware profile for your machine. You can copy this JSON to back it up or share it. A standalone copy is saved to `{backup_file}`.",

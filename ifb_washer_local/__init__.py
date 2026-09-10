@@ -30,6 +30,7 @@ from .profiler import (
     calibrate_appliance_simple,
     deserialize_capabilities_map,
     extract_profile_metadata,
+    list_profile_files,
     probe_single_program,
     save_profile_backup,
     serialize_capabilities_map,

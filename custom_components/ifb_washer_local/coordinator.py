@@ -32,6 +32,7 @@ try:
         calibrate_appliance_simple,
         deserialize_capabilities_map,
         extract_profile_metadata,
+        list_profile_files,
         save_profile_backup,
         serialize_capabilities_map,
     )
@@ -57,6 +58,7 @@ except (ImportError, ValueError):
         calibrate_appliance_simple,
         deserialize_capabilities_map,
         extract_profile_metadata,
+        list_profile_files,
         save_profile_backup,
         serialize_capabilities_map,
     )
@@ -474,5 +476,12 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
                 self.entry, data=new_data, options=new_options
             )
         await self.async_request_refresh()
+
+    async def async_list_profile_files(self) -> list[str]:
+        """List all saved profile JSON filenames from disk."""
+        if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
+            config_dir = self.hass.config.config_dir
+            return await self.hass.async_add_executor_job(list_profile_files, config_dir)
+        return []
 
 

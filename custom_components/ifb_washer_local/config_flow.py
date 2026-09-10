@@ -681,15 +681,13 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                 if coordinator:
                     return self.async_show_progress(
                         step_id="calibrate_progress",
-                        progress_action="calibrate_progress",
+                progress_action="calibrate_progress",
                         progress_task=self.hass.async_create_task(
                             coordinator.async_calibrate(mode=cal_action)
                         ),
                     )
-            elif cal_action == "export":
-                return await self.async_step_export_profile()
-            elif cal_action == "restore":
-                return await self.async_step_restore_profile()
+            elif cal_action in ("manage_profile", "export", "restore"):
+                return await self.async_step_manage_profile()
             elif cal_action == "reset":
                 if coordinator:
                     await coordinator.async_clear_profile()
@@ -741,11 +739,10 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                     selector.SelectSelectorConfig(
                         options=[
                             selector.SelectOptionDict(value="none", label="Keep Current Profile"),
+                            selector.SelectOptionDict(value="manage_profile", label="Manage / Export / Import Profile (JSON)"),
                             selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~2m)"),
                             selector.SelectOptionDict(value="simple", label="Run Simple Calibration (~4-5m)"),
                             selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~15m)"),
-                            selector.SelectOptionDict(value="export", label="Export / View Active Profile (JSON)"),
-                            selector.SelectOptionDict(value="restore", label="Restore / Import Profile (JSON)"),
                             selector.SelectOptionDict(value="reset", label="Reset to Standard Catalog Defaults"),
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
@@ -759,10 +756,11 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             data_schema=schema,
         )
 
-    async def async_step_export_profile(
+    async def async_step_manage_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Display active calibrated profile JSON, auto-save to disk, and apply live edits."""
+        """Unified Profile Manager: select from disk, upload JSON file, or live-edit active profile."""
+        errors: dict[str, str] = {}
         entry = self._entry
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
         model_name = entry.options.get(CONF_MODEL) or entry.data.get(CONF_MODEL) or "IFB Washing Machine"
@@ -771,31 +769,51 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
         if user_input is not None:
             raw_text = user_input.get("profile_json", "").strip()
+            file_path = user_input.get("profile_file")
+
+            # Handle file upload if provided
+            if file_path:
+                try:
+                    def _read_file(p: str) -> str:
+                        with open(p, "r", encoding="utf-8") as f:
+                            return f.read()
+                    raw_text = await self.hass.async_add_executor_job(_read_file, file_path)
+                except Exception as file_err:
+                    _LOGGER.warning("Could not read uploaded profile file: %s", file_err)
+
             if raw_text:
                 try:
                     parsed = json.loads(raw_text)
-                    if isinstance(parsed, dict):
-                        if coordinator:
-                            await coordinator.async_restore_profile(parsed)
-                        else:
-                            caps = deserialize_capabilities_map(parsed)
-                            if caps:
-                                new_data = dict(entry.data)
-                                new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
-                                    caps,
-                                    mode="edited",
-                                    model=model_name,
-                                    family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
-                                )
-                                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                    if not isinstance(parsed, dict):
+                        raise ValueError("JSON root must be an object")
+                    if coordinator:
+                        await coordinator.async_restore_profile(parsed)
+                    else:
+                        caps = deserialize_capabilities_map(parsed)
+                        if not caps:
+                            raise ValueError("No valid program capabilities found in profile")
+                        new_data = dict(entry.data)
+                        new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
+                            caps,
+                            mode="imported",
+                            model=model_name,
+                        )
+                        self.hass.config_entries.async_update_entry(entry, data=new_data)
+
+                    return self.async_create_entry(
+                        title="",
+                        data=getattr(self, "_options_data", {}),
+                    )
                 except Exception as exc:
-                    _LOGGER.warning("Could not apply edited profile JSON in export view: %s", exc)
+                    _LOGGER.warning("Failed to parse/apply profile JSON: %s", exc)
+                    errors["profile_json"] = "invalid_profile_json"
+            else:
+                return self.async_create_entry(
+                    title="",
+                    data=getattr(self, "_options_data", {}),
+                )
 
-            return self.async_create_entry(
-                title="",
-                data=getattr(self, "_options_data", {}),
-            )
-
+        # Build initial JSON display
         cal_data = entry.options.get(CONF_CALIBRATED_PROFILE) or entry.data.get(CONF_CALIBRATED_PROFILE)
         if cal_data and isinstance(cal_data, dict):
             if "capabilities" in cal_data:
@@ -809,16 +827,18 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                     family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
                 )
                 profile_json = json.dumps(envelope, indent=2)
-        elif coordinator and coordinator.calibrated_caps:
+        elif coordinator and isinstance(getattr(coordinator, "calibrated_caps", None), dict) and coordinator.calibrated_caps:
+            meta_mode = "simple"
+            if isinstance(getattr(coordinator, "calibrated_meta", None), dict):
+                meta_mode = str(coordinator.calibrated_meta.get("calibration_mode", "simple"))
             envelope = serialize_capabilities_map(
                 coordinator.calibrated_caps,
-                mode=coordinator.calibrated_meta.get("calibration_mode", "simple"),
+                mode=meta_mode,
                 model=model_name,
-                family=str(coordinator.appliance_family),
+                family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
             )
             profile_json = json.dumps(envelope, indent=2)
         else:
-            # Generate template from base catalog
             prog_map = getattr(coordinator, "program_map", PROGRAM_CODES_WASHER_DRYER)
             base_caps = {code: getattr(coordinator, "get_program_capabilities", lambda c: None)(code) for code in prog_map}
             valid_caps = {k: v for k, v in base_caps.items() if v is not None}
@@ -830,7 +850,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             )
             profile_json = json.dumps(envelope, indent=2)
 
-        # Save profile backup to disk asynchronously
+        # Auto-save export backup copy
         try:
             if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
                 config_dir = self.hass.config.config_dir
@@ -848,95 +868,61 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         except Exception as exc:
             _LOGGER.debug("Could not auto-save export profile: %s", exc)
 
-        schema = vol.Schema(
-            {
-                vol.Optional(
-                    "profile_json", default=profile_json
-                ): selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=True,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                ),
-            }
+        # Discovered saved profile files on disk
+        saved_files: list[str] = []
+        try:
+            if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
+                config_dir = self.hass.config.config_dir
+                if coordinator and hasattr(coordinator, "async_list_profile_files"):
+                    saved_files = await coordinator.async_list_profile_files()
+                else:
+                    saved_files = await self.hass.async_add_executor_job(list_profile_files, config_dir)
+        except Exception:
+            pass
+
+        file_options = [
+            selector.SelectOptionDict(value="active", label="Active Profile (Current)"),
+        ]
+        for f in saved_files:
+            file_options.append(selector.SelectOptionDict(value=f, label=f"/config/ifb_washer_profiles/{f}"))
+
+        schema_dict: dict[Any, Any] = {}
+        if saved_files:
+            schema_dict[vol.Optional("saved_profile", default="active")] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=file_options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
+
+        schema_dict[vol.Optional("profile_file")] = selector.FileSelector(
+            selector.FileSelectorConfig(accept=".json")
+        )
+        schema_dict[vol.Optional("profile_json", default=profile_json)] = selector.TextSelector(
+            selector.TextSelectorConfig(
+                multiline=True,
+                type=selector.TextSelectorType.TEXT,
+            )
         )
 
         return self.async_show_form(
-            step_id="export_profile",
-            data_schema=schema,
+            step_id="manage_profile",
+            data_schema=vol.Schema(schema_dict),
+            errors=errors,
             description_placeholders={"backup_file": backup_file},
         )
+
+    async def async_step_export_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Alias for manage_profile."""
+        return await self.async_step_manage_profile(user_input)
 
     async def async_step_restore_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Allow user to upload a .json file or paste profile JSON to restore/import."""
-        errors: dict[str, str] = {}
-        entry = self._entry
-        coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
-
-        if user_input is not None:
-            raw_text = user_input.get("profile_json", "").strip()
-            file_path = user_input.get("profile_file")
-
-            # If a file was uploaded/selected, read its content
-            if file_path:
-                try:
-                    def _read_file(p: str) -> str:
-                        with open(p, "r", encoding="utf-8") as f:
-                            return f.read()
-                    raw_text = await self.hass.async_add_executor_job(_read_file, file_path)
-                except Exception as file_err:
-                    _LOGGER.warning("Could not read uploaded profile file: %s", file_err)
-
-            if not raw_text:
-                errors["base"] = "missing_profile_data"
-            else:
-                try:
-                    parsed = json.loads(raw_text)
-                    if not isinstance(parsed, dict):
-                        raise ValueError("JSON root must be an object")
-                    if coordinator:
-                        await coordinator.async_restore_profile(parsed)
-                    else:
-                        caps = deserialize_capabilities_map(parsed)
-                        if not caps:
-                            raise ValueError("No valid program capabilities found in profile")
-                        new_data = dict(entry.data)
-                        new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
-                            caps,
-                            mode="imported",
-                            model=entry.data.get(CONF_MODEL, "IFB Washing Machine"),
-                        )
-                        self.hass.config_entries.async_update_entry(entry, data=new_data)
-
-                    return self.async_create_entry(
-                        title="",
-                        data=getattr(self, "_options_data", {}),
-                    )
-                except Exception as exc:  # pylint: disable=broad-except
-                    _LOGGER.warning("Failed to restore profile JSON: %s", exc)
-                    errors["profile_json"] = "invalid_profile_json"
-
-        schema = vol.Schema(
-            {
-                vol.Optional("profile_file"): selector.FileSelector(
-                    selector.FileSelectorConfig(accept=".json")
-                ),
-                vol.Optional("profile_json"): selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=True,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                ),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="restore_profile",
-            data_schema=schema,
-            errors=errors,
-        )
+        """Alias for manage_profile."""
+        return await self.async_step_manage_profile(user_input)
 
     async def async_step_calibrate_progress(
         self, user_input: dict[str, Any] | None = None
