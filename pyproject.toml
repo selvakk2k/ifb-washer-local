@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ifb-washer-local"
-version = "0.1.0-beta.6"
+version = "0.1.0-beta.7"
 description = "Async local network client and Home Assistant integration for IFB front-load washing machines and washer dryers"
 readme = "README.md"
 authors = [
