@@ -30,6 +30,8 @@ try:
         calibrate_appliance_quick,
         calibrate_appliance_simple,
         deserialize_capabilities_map,
+        extract_profile_metadata,
+        save_profile_backup,
         serialize_capabilities_map,
     )
     from .ifb_washer_local.const import (
@@ -53,6 +55,8 @@ except (ImportError, ValueError):
         calibrate_appliance_quick,
         calibrate_appliance_simple,
         deserialize_capabilities_map,
+        extract_profile_metadata,
+        save_profile_backup,
         serialize_capabilities_map,
     )
     from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
@@ -126,15 +130,18 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
         # Load persisted calibration profile if available
         self.calibrated_caps: dict[int, ProgramCapabilities] = {}
+        self.calibrated_meta: dict[str, Any] = {}
         if entry:
             options_dict = entry.options if isinstance(getattr(entry, "options", None), dict) else {}
             data_dict = entry.data if isinstance(getattr(entry, "data", None), dict) else {}
             cal_data = options_dict.get(CONF_CALIBRATED_PROFILE) or data_dict.get(CONF_CALIBRATED_PROFILE)
             if cal_data and isinstance(cal_data, dict):
                 self.calibrated_caps = deserialize_capabilities_map(cal_data)
+                self.calibrated_meta = extract_profile_metadata(cal_data)
                 _LOGGER.info(
-                    "Loaded custom calibrated profile for IFB Washer (%d programs calibrated)",
+                    "Loaded custom calibrated profile for IFB Washer (%d programs calibrated, mode=%s)",
                     len(self.calibrated_caps),
+                    self.calibrated_meta.get("calibration_mode", "legacy"),
                 )
 
 
@@ -352,23 +359,117 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
                     base_map,
                     is_washer_dryer=is_wd,
                 )
-            self.calibrated_caps = new_caps
-
-            # Persist to config entry data
+            model_name = "IFB Washing Machine"
             if self.entry:
-                serialized = serialize_capabilities_map(new_caps)
+                options_dict = self.entry.options if isinstance(getattr(self.entry, "options", None), dict) else {}
+                data_dict = self.entry.data if isinstance(getattr(self.entry, "data", None), dict) else {}
+                model_name = options_dict.get(CONF_MODEL) or data_dict.get(CONF_MODEL) or "IFB Washing Machine"
+
+            self.calibrated_caps = new_caps
+            self.calibrated_meta = {
+                "schema_version": 1,
+                "calibration_mode": mode,
+                "calibrated_at": dt_util.utcnow().isoformat(),
+                "appliance_family": str(self.appliance_family),
+                "model": model_name,
+                "programs_count": len(new_caps),
+            }
+
+            # Persist structured envelope to config entry data
+            if self.entry:
+                serialized = serialize_capabilities_map(
+                    new_caps,
+                    mode=mode,
+                    model=model_name,
+                    family=str(self.appliance_family),
+                )
                 new_data = dict(self.entry.data)
                 new_data[CONF_CALIBRATED_PROFILE] = serialized
                 self.hass.config_entries.async_update_entry(self.entry, data=new_data)
 
+            # Save standalone JSON backup to /config/ifb_washer_profiles/
+            try:
+                if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
+                    config_dir = self.hass.config.config_dir
+                    save_profile_backup(
+                        config_dir,
+                        new_caps,
+                        mode=mode,
+                        model=model_name,
+                        family=str(self.appliance_family),
+                    )
+            except Exception as exc:
+                _LOGGER.debug("Could not write standalone profile backup: %s", exc)
+
             _LOGGER.info(
-                "Hardware calibration completed successfully for %s (%d programs mapped)",
+                "Hardware calibration completed successfully for %s (%d programs mapped, mode=%s)",
                 self.client.host,
                 len(new_caps),
+                mode,
             )
             await self.async_request_refresh()
             return new_caps
         finally:
             self._is_calibrating = False
+
+    async def async_restore_profile(
+        self, profile_data: dict[str, Any]
+    ) -> dict[int, ProgramCapabilities]:
+        """Restore and apply a calibrated profile from JSON data."""
+        caps = deserialize_capabilities_map(profile_data)
+        if not caps:
+            raise ValueError("No valid program capabilities found in profile data")
+
+        meta = extract_profile_metadata(profile_data)
+        if meta.get("calibration_mode") == "legacy":
+            meta["calibration_mode"] = "imported"
+
+        self.calibrated_caps = caps
+        self.calibrated_meta = meta
+
+        if self.entry:
+            options_dict = self.entry.options if isinstance(getattr(self.entry, "options", None), dict) else {}
+            data_dict = self.entry.data if isinstance(getattr(self.entry, "data", None), dict) else {}
+            model_name = meta.get("model") or options_dict.get(CONF_MODEL) or data_dict.get(CONF_MODEL) or "IFB Washing Machine"
+
+            serialized = serialize_capabilities_map(
+                caps,
+                mode=meta.get("calibration_mode", "imported"),
+                model=model_name,
+                family=meta.get("appliance_family") or str(self.appliance_family),
+            )
+            new_data = dict(self.entry.data)
+            new_data[CONF_CALIBRATED_PROFILE] = serialized
+            self.hass.config_entries.async_update_entry(self.entry, data=new_data)
+
+            try:
+                if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
+                    config_dir = self.hass.config.config_dir
+                    save_profile_backup(
+                        config_dir,
+                        caps,
+                        mode=meta.get("calibration_mode", "imported"),
+                        model=model_name,
+                        family=meta.get("appliance_family") or str(self.appliance_family),
+                    )
+            except Exception:
+                pass
+
+        await self.async_request_refresh()
+        return caps
+
+    async def async_clear_profile(self) -> None:
+        """Clear custom calibrated profile and revert to base catalog defaults."""
+        self.calibrated_caps = {}
+        self.calibrated_meta = {}
+        if self.entry:
+            new_data = dict(self.entry.data)
+            new_data.pop(CONF_CALIBRATED_PROFILE, None)
+            new_options = dict(self.entry.options)
+            new_options.pop(CONF_CALIBRATED_PROFILE, None)
+            self.hass.config_entries.async_update_entry(
+                self.entry, data=new_data, options=new_options
+            )
+        await self.async_request_refresh()
 
 

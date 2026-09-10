@@ -29,7 +29,9 @@ from .profiler import (
     calibrate_appliance_quick,
     calibrate_appliance_simple,
     deserialize_capabilities_map,
+    extract_profile_metadata,
     probe_single_program,
+    save_profile_backup,
     serialize_capabilities_map,
 )
 from .protocol import (
@@ -61,7 +63,6 @@ __all__ = [
     "PROGRAM_CODES_WASHER_DRYER",
     "ProgramCapabilities",
     "ProgramSignature",
-
     "SPIN_SPEED_OPTIONS",
     "STATE_LABELS",
     "TELEMETRY_SIGNATURES",
@@ -78,8 +79,10 @@ __all__ = [
     "compute_checksums",
     "deserialize_capabilities_map",
     "detect_program_from_telemetry",
+    "extract_profile_metadata",
     "parse_status_frame",
     "probe_single_program",
+    "save_profile_backup",
     "serialize_capabilities_map",
 ]
 

@@ -334,15 +334,64 @@ async def calibrate_appliance_detailed(
     return calibrated_map
 
 
-def serialize_capabilities_map(caps_map: dict[int, ProgramCapabilities]) -> dict[str, Any]:
-    """Serialize program capabilities map to a JSON-friendly dict."""
-    return {str(code): caps.to_dict() for code, caps in caps_map.items()}
+from datetime import datetime, timezone
+import json
+import os
+
+
+def serialize_capabilities_map(
+    caps_map: dict[int, ProgramCapabilities],
+    mode: str = "simple",
+    model: Optional[str] = None,
+    family: Optional[str] = None,
+) -> dict[str, Any]:
+    """Serialize program capabilities map to a structured JSON envelope with metadata (host redacted)."""
+    raw_caps = {str(code): caps.to_dict() for code, caps in caps_map.items()}
+    return {
+        "schema_version": 1,
+        "calibration_mode": mode,
+        "calibrated_at": datetime.now(timezone.utc).isoformat(),
+        "appliance_family": family or "washer_dryer",
+        "model": model or "IFB Washing Machine",
+        "programs_count": len(caps_map),
+        "capabilities": raw_caps,
+    }
+
+
+def extract_profile_metadata(data: dict[str, Any]) -> dict[str, Any]:
+    """Extract profile metadata from either an envelope or a legacy dictionary."""
+    if isinstance(data, dict) and "capabilities" in data and isinstance(data["capabilities"], dict):
+        return {
+            "schema_version": data.get("schema_version", 1),
+            "calibration_mode": data.get("calibration_mode", "simple"),
+            "calibrated_at": data.get("calibrated_at"),
+            "appliance_family": data.get("appliance_family", "washer_dryer"),
+            "model": data.get("model", "IFB Washing Machine"),
+            "programs_count": data.get("programs_count", len(data["capabilities"])),
+        }
+    # Legacy raw dictionary fallback
+    return {
+        "schema_version": 1,
+        "calibration_mode": "legacy",
+        "calibrated_at": None,
+        "appliance_family": "washer_dryer",
+        "model": "IFB Washing Machine",
+        "programs_count": len(data) if isinstance(data, dict) else 0,
+    }
 
 
 def deserialize_capabilities_map(data: dict[str, Any]) -> dict[int, ProgramCapabilities]:
-    """Deserialize program capabilities map from a JSON-friendly dict."""
+    """Deserialize program capabilities map from either an envelope or legacy dict."""
     result: dict[int, ProgramCapabilities] = {}
-    for code_str, caps_dict in data.items():
+    if not isinstance(data, dict):
+        return result
+
+    # Check for envelope format
+    target_caps = data.get("capabilities", data)
+    if not isinstance(target_caps, dict):
+        return result
+
+    for code_str, caps_dict in target_caps.items():
         try:
             code = int(code_str)
             if isinstance(caps_dict, dict):
@@ -350,3 +399,24 @@ def deserialize_capabilities_map(data: dict[str, Any]) -> dict[int, ProgramCapab
         except (ValueError, TypeError):
             continue
     return result
+
+
+def save_profile_backup(
+    config_dir: str,
+    caps_map: dict[int, ProgramCapabilities],
+    mode: str = "simple",
+    model: Optional[str] = None,
+    family: Optional[str] = None,
+) -> str:
+    """Save calibrated profile to a standalone JSON file in config_dir/ifb_washer_profiles/."""
+    profiles_dir = os.path.join(config_dir, "ifb_washer_profiles")
+    os.makedirs(profiles_dir, exist_ok=True)
+
+    clean_model = (model or "ifb_washer").lower().replace(" ", "_").replace("/", "_").replace(".", "_")
+    filename = f"{clean_model}_profile.json"
+    filepath = os.path.join(profiles_dir, filename)
+
+    payload = serialize_capabilities_map(caps_map, mode=mode, model=model, family=family)
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+    return filepath

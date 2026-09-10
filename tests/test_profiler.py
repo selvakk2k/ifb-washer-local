@@ -1,5 +1,4 @@
-"""Unit tests for automated hardware capability calibration profiler."""
-
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -80,7 +79,7 @@ def _build_mock_washer_state(
 
 @pytest.mark.asyncio
 async def test_serialize_deserialize_capabilities_map():
-    """Test serialization and deserialization roundtrip of capabilities."""
+    """Test serialization and deserialization roundtrip of capabilities with metadata envelope."""
     original = {
         13: ProgramCapabilities(
             allowed_temps=("Cold", "30°C", "40°C"),
@@ -91,14 +90,27 @@ async def test_serialize_deserialize_capabilities_map():
         )
     }
 
-    serialized = serialize_capabilities_map(original)
-    assert "13" in serialized
-    assert serialized["13"]["allowed_spins"] == ["No Spin", "600 RPM", "800 RPM", "1000 RPM"]
+    serialized = serialize_capabilities_map(original, mode="simple", model="Executive Plus ZXS")
+    assert serialized["schema_version"] == 1
+    assert serialized["calibration_mode"] == "simple"
+    assert serialized["model"] == "Executive Plus ZXS"
+    assert "capabilities" in serialized
+    assert "13" in serialized["capabilities"]
+    assert serialized["capabilities"]["13"]["allowed_spins"] == ["No Spin", "600 RPM", "800 RPM", "1000 RPM"]
 
+    # Test deserialization from envelope
     deserialized = deserialize_capabilities_map(serialized)
     assert 13 in deserialized
     assert deserialized[13].allowed_spins == ("No Spin", "600 RPM", "800 RPM", "1000 RPM")
     assert deserialized[13].allowed_temps == ("Cold", "30°C", "40°C")
+
+    # Test backwards compatibility with legacy raw dictionary format
+    legacy_dict = {
+        "13": original[13].to_dict()
+    }
+    legacy_deserialized = deserialize_capabilities_map(legacy_dict)
+    assert 13 in legacy_deserialized
+    assert legacy_deserialized[13].allowed_spins == ("No Spin", "600 RPM", "800 RPM", "1000 RPM")
 
 
 @pytest.mark.asyncio
@@ -218,5 +230,63 @@ async def test_coordinator_async_calibrate(mock_hass):
         assert coord.get_program_capabilities(13) == PROGRAM_CAPABILITIES_WASHER_DRYER[13]
         mock_hass.config_entries.async_update_entry.assert_called_once()
         coord.async_request_refresh.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_profile_backup_and_metadata(tmp_path):
+    """Test saving profile backup to file and extracting metadata."""
+    from ifb_washer_local import extract_profile_metadata, save_profile_backup
+    import json
+
+    caps_map = {13: PROGRAM_CAPABILITIES_WASHER_DRYER[13]}
+    filepath = save_profile_backup(
+        str(tmp_path),
+        caps_map,
+        mode="simple",
+        model="Executive Plus ZXS",
+        family="washer_dryer",
+    )
+    assert os.path.exists(filepath)
+    with open(filepath, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    assert data["schema_version"] == 1
+    assert data["calibration_mode"] == "simple"
+    assert data["model"] == "Executive Plus ZXS"
+    assert "capabilities" in data
+    assert "13" in data["capabilities"]
+
+    meta = extract_profile_metadata(data)
+    assert meta["calibration_mode"] == "simple"
+    assert meta["model"] == "Executive Plus ZXS"
+
+
+@pytest.mark.asyncio
+async def test_coordinator_restore_and_clear_profile(mock_hass):
+    """Test coordinator async_restore_profile and async_clear_profile."""
+    client = MagicMock(spec=IFBWasherClient)
+    client.host = "192.168.0.100"
+    mock_entry = MagicMock()
+    mock_entry.data = {}
+    mock_entry.options = {}
+
+    coord = IFBWasherCoordinator(mock_hass, client, entry=mock_entry)
+    coord.async_request_refresh = AsyncMock()
+
+    payload = serialize_capabilities_map(
+        {13: PROGRAM_CAPABILITIES_WASHER_DRYER[13]},
+        mode="simple",
+        model="Test Model",
+    )
+    restored = await coord.async_restore_profile(payload)
+    assert 13 in restored
+    assert coord.calibrated_caps == restored
+    assert coord.calibrated_meta["calibration_mode"] == "simple"
+    assert coord.calibrated_meta["model"] == "Test Model"
+
+    await coord.async_clear_profile()
+    assert coord.calibrated_caps == {}
+    assert coord.calibrated_meta == {}
+
 
 

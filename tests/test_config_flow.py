@@ -1,5 +1,4 @@
-"""Unit tests for IFB Washer Local config flow."""
-
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -367,4 +366,109 @@ async def test_options_flow_calibration_progress(mock_hass):
     finish_result = await options_flow.async_step_finish_options()
     assert finish_result["type"] == FlowResultType.CREATE_ENTRY
     assert finish_result["data"][CONF_MODEL] == "WD Executive ZXS"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_export_profile(mock_hass):
+    """Test exporting calibrated profile from options flow."""
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_FAMILY: ApplianceFamily.WASHER_DRYER,
+        CONF_MODEL: "WD Executive ZXS",
+        "calibrated_profile": {
+            "13": {
+                "allowed_temps": ["Cold", "40°C"],
+                "allowed_spins": ["No Spin", "1000 RPM"],
+                "supports_dry": False,
+                "allowed_dry_modes": ["No Dry"],
+                "supports_steam": True,
+                "supports_prewash": True,
+                "supports_soak": True,
+                "supports_time_saver": True,
+                "supports_extra_rinse": True,
+                "supports_hot_rinse": True,
+                "supports_rinse_hold": True,
+                "supports_eco": True,
+                "supports_aroma": True,
+                "supports_anti_crease": True,
+            }
+        },
+    }
+    mock_entry.options = {}
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    # Trigger export step
+    result = await options_flow.async_step_init({
+        CONF_MODEL: "WD Executive ZXS",
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        "calibration_action": "export",
+    })
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "export_profile"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_restore_profile(mock_hass):
+    """Test importing/restoring profile JSON in options flow."""
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_FAMILY: ApplianceFamily.WASHER_DRYER,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+    mock_entry.options = {}
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_restore_profile = AsyncMock(return_value={})
+    mock_hass.data = {"ifb_washer_local": {"test_entry_123": mock_coordinator}}
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    # Select restore action
+    init_res = await options_flow.async_step_init({
+        CONF_MODEL: "WD Executive ZXS",
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        "calibration_action": "restore",
+    })
+    assert init_res["type"] == FlowResultType.FORM
+    assert init_res["step_id"] == "restore_profile"
+
+    # Submit valid profile JSON
+    profile_json = json.dumps({
+        "schema_version": 1,
+        "calibration_mode": "simple",
+        "model": "WD Executive ZXS",
+        "capabilities": {
+            "13": {
+                "allowed_temps": ["Cold", "40°C"],
+                "allowed_spins": ["No Spin", "1000 RPM"],
+                "supports_dry": False,
+                "allowed_dry_modes": ["No Dry"],
+                "supports_steam": True,
+                "supports_prewash": True,
+                "supports_soak": True,
+                "supports_time_saver": True,
+                "supports_extra_rinse": True,
+                "supports_hot_rinse": True,
+                "supports_rinse_hold": True,
+                "supports_eco": True,
+                "supports_aroma": True,
+                "supports_anti_crease": True,
+            }
+        },
+    })
+    restore_res = await options_flow.async_step_restore_profile({"profile_json": profile_json})
+    assert restore_res["type"] == FlowResultType.CREATE_ENTRY
+    mock_coordinator.async_restore_profile.assert_awaited_once()
+
 

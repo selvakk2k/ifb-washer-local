@@ -118,10 +118,27 @@
         "title": "Calibrating Capabilities",
         "description": "Probing machine capabilities. Please wait while Home Assistant verifies your hardware options."
       },
+      "export_profile": {
+        "title": "Export Calibrated Profile",
+        "description": "Active hardware profile for your machine. You can copy this JSON to back it up or share it. A standalone copy is saved to `{backup_file}`.",
+        "data": {
+          "profile_json": "Profile JSON Data"
+        }
+      },
+      "restore_profile": {
+        "title": "Restore / Import Profile",
+        "description": "Paste a previously exported profile JSON below to immediately apply it without running an online probe.",
+        "data": {
+          "profile_json": "Paste Profile JSON"
+        }
+      },
       "finish_options": {
-        "title": "Calibration Complete",
-        "description": "Capability profile calibration and options update have successfully finished."
+        "title": "Options Updated",
+        "description": "Capability profile and options update have successfully completed."
       }
+    },
+    "error": {
+      "invalid_profile_json": "The provided JSON is invalid or does not contain valid program capabilities."
     },
     "progress": {
       "calibrate_progress": "Probing program capabilities on your washing machine..."

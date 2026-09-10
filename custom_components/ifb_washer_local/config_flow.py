@@ -14,6 +14,8 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+import json
+
 try:
     from .ifb_washer_local import (
         DEFAULT_PORT,
@@ -30,6 +32,9 @@ try:
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
         calibrate_appliance_simple,
+        deserialize_capabilities_map,
+        extract_profile_metadata,
+        save_profile_backup,
         serialize_capabilities_map,
     )
     from .ifb_washer_local.const import (
@@ -56,6 +61,9 @@ except (ImportError, ValueError):
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
         calibrate_appliance_simple,
+        deserialize_capabilities_map,
+        extract_profile_metadata,
+        save_profile_backup,
         serialize_capabilities_map,
     )
     from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
@@ -654,6 +662,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
     ) -> ConfigFlowResult:
         """Manage integration options."""
         entry = self._entry
+        coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
 
         if user_input is not None:
             self._options_data = {
@@ -664,7 +673,6 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
             cal_action = user_input.get("calibration_action", "none")
             if cal_action in ("quick", "simple", "detailed"):
-                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
                 if coordinator:
                     return self.async_show_progress(
                         step_id="calibrate_progress",
@@ -673,14 +681,17 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                             coordinator.async_calibrate(mode=cal_action)
                         ),
                     )
+            elif cal_action == "export":
+                return await self.async_step_export_profile()
+            elif cal_action == "restore":
+                return await self.async_step_restore_profile()
             elif cal_action == "reset":
-                new_data = dict(entry.data)
-                new_data.pop(CONF_CALIBRATED_PROFILE, None)
-                self.hass.config_entries.async_update_entry(entry, data=new_data)
-                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
                 if coordinator:
-                    coordinator.calibrated_caps = {}
-                    await coordinator.async_request_refresh()
+                    await coordinator.async_clear_profile()
+                else:
+                    new_data = dict(entry.data)
+                    new_data.pop(CONF_CALIBRATED_PROFILE, None)
+                    self.hass.config_entries.async_update_entry(entry, data=new_data)
 
             return self.async_create_entry(
                 title="",
@@ -728,6 +739,8 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                             selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~2m)"),
                             selector.SelectOptionDict(value="simple", label="Run Simple Calibration (~4-5m)"),
                             selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~15m)"),
+                            selector.SelectOptionDict(value="export", label="Export / View Active Profile (JSON)"),
+                            selector.SelectOptionDict(value="restore", label="Restore / Import Profile (JSON)"),
                             selector.SelectOptionDict(value="reset", label="Reset to Standard Catalog Defaults"),
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
@@ -739,6 +752,129 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=schema,
+        )
+
+    async def async_step_export_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Display active calibrated profile JSON and backup location."""
+        if user_input is not None:
+            return self.async_create_entry(
+                title="",
+                data=getattr(self, "_options_data", {}),
+            )
+
+        entry = self._entry
+        coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        model_name = entry.options.get(CONF_MODEL) or entry.data.get(CONF_MODEL) or "IFB Washing Machine"
+        clean_model = model_name.lower().replace(" ", "_").replace("/", "_").replace(".", "_")
+        backup_file = f"/config/ifb_washer_profiles/{clean_model}_profile.json"
+
+        cal_data = entry.options.get(CONF_CALIBRATED_PROFILE) or entry.data.get(CONF_CALIBRATED_PROFILE)
+        if cal_data and isinstance(cal_data, dict):
+            # If already an envelope, display directly; otherwise wrap it
+            if "capabilities" in cal_data:
+                profile_json = json.dumps(cal_data, indent=2)
+            else:
+                caps = deserialize_capabilities_map(cal_data)
+                envelope = serialize_capabilities_map(
+                    caps,
+                    mode="simple",
+                    model=model_name,
+                    family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
+                )
+                profile_json = json.dumps(envelope, indent=2)
+        elif coordinator and coordinator.calibrated_caps:
+            envelope = serialize_capabilities_map(
+                coordinator.calibrated_caps,
+                mode=coordinator.calibrated_meta.get("calibration_mode", "simple"),
+                model=model_name,
+                family=str(coordinator.appliance_family),
+            )
+            profile_json = json.dumps(envelope, indent=2)
+        else:
+            # Generate template from base catalog
+            prog_map = getattr(coordinator, "program_map", PROGRAM_CODES_WASHER_DRYER)
+            base_caps = {code: getattr(coordinator, "get_program_capabilities", lambda c: None)(code) for code in prog_map}
+            valid_caps = {k: v for k, v in base_caps.items() if v is not None}
+            envelope = serialize_capabilities_map(
+                valid_caps,
+                mode="catalog_default",
+                model=model_name,
+                family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
+            )
+            profile_json = json.dumps(envelope, indent=2)
+
+        schema = vol.Schema(
+            {
+                vol.Optional(
+                    "profile_json", default=profile_json
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=True,
+                        type=selector.TextSelectorType.TEXT,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="export_profile",
+            data_schema=schema,
+            description_placeholders={"backup_file": backup_file},
+        )
+
+    async def async_step_restore_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Allow user to paste profile JSON to restore or import a profile."""
+        errors: dict[str, str] = {}
+        entry = self._entry
+        coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+
+        if user_input is not None:
+            raw_text = user_input.get("profile_json", "").strip()
+            try:
+                parsed = json.loads(raw_text)
+                if not isinstance(parsed, dict):
+                    raise ValueError("JSON root must be an object")
+                if coordinator:
+                    await coordinator.async_restore_profile(parsed)
+                else:
+                    caps = deserialize_capabilities_map(parsed)
+                    if not caps:
+                        raise ValueError("No valid program capabilities found in profile")
+                    new_data = dict(entry.data)
+                    new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
+                        caps,
+                        mode="imported",
+                        model=entry.data.get(CONF_MODEL, "IFB Washing Machine"),
+                    )
+                    self.hass.config_entries.async_update_entry(entry, data=new_data)
+
+                return self.async_create_entry(
+                    title="",
+                    data=getattr(self, "_options_data", {}),
+                )
+            except Exception as exc:  # pylint: disable=broad-except
+                _LOGGER.warning("Failed to restore profile JSON: %s", exc)
+                errors["profile_json"] = "invalid_profile_json"
+
+        schema = vol.Schema(
+            {
+                vol.Required("profile_json"): selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=True,
+                        type=selector.TextSelectorType.TEXT,
+                    )
+                ),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="restore_profile",
+            data_schema=schema,
+            errors=errors,
         )
 
     async def async_step_calibrate_progress(
@@ -755,4 +891,5 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             title="",
             data=getattr(self, "_options_data", {}),
         )
+
 
