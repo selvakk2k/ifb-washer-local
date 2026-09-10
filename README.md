@@ -100,7 +100,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
    * **Calibrate Hardware Now**: Run a live probe (Quick, Simple, or Detailed) directly against physical firmware while in Standby.
    * **Import Saved Profile**: Paste a previously exported JSON capability profile envelope.
    * **Skip (Safe Defaults)**: Use standard front-load / washer-dryer default limits.
-5. *(Recommended)* Reserve a static DHCP IP address for your washing machine in your home Wi-Fi router settings.
+5. * Reserve a static DHCP IP address for your washing machine in your home Wi-Fi router settings. 
 
 ---
 
