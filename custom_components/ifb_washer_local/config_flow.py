@@ -526,7 +526,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Ensure appliance is awake and powered ON
         try:
-            await self._client.turn_on()
+            await self._client.power_on()
             await asyncio.sleep(0.5)
         except Exception:
             pass

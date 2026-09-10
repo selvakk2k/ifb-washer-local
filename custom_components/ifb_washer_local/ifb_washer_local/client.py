@@ -313,6 +313,10 @@ class IFBWasherClient:
                 return state
         return state
 
+    async def turn_on(self) -> WasherState:
+        """Alias for power_on to power on machine and illuminate display."""
+        return await self.power_on()
+
     async def power_off(self) -> WasherState:
         """Turn off the washing machine."""
         cmd_pkt = build_fixed_command(FIXED_CMD_POWER_OFF)
@@ -323,6 +327,10 @@ class IFBWasherClient:
             if not state.is_powered_on:
                 return state
         return state
+
+    async def turn_off(self) -> WasherState:
+        """Alias for power_off to power off machine into standby."""
+        return await self.power_off()
 
     async def close(self) -> None:
         """Close the underlying session if owned by the client."""

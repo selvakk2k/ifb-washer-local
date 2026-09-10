@@ -324,6 +324,13 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             base_map = PROGRAM_CAPABILITIES_WASHER_DRYER
 
         try:
+            # Ensure appliance display and MCU are powered ON
+            try:
+                await self.client.power_on()
+                await asyncio.sleep(0.5)
+            except Exception as exc:
+                _LOGGER.debug("Could not power on before calibration: %s", exc)
+
             if mode == "detailed":
                 new_caps = await calibrate_appliance_detailed(
                     self.client,
