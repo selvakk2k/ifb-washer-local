@@ -13,20 +13,19 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 ---
 
 ## Table of Contents
-* [Features](#features)
-* [Hardware Compatibility](#hardware-compatibility)
-* [Network Architecture](#network-architecture)
-* [Installation](#installation)
-  * [Option 1: HACS Custom Repository](#option-1-hacs-custom-repository)
-  * [Option 2: Manual Installation](#option-2-manual-installation)
-* [Configuration](#configuration)
-* [Hardware Profile Calibration & Standalone Backups](#hardware-profile-calibration--standalone-backups)
-* [Entities Provided](#entities-provided)
-* [Operation & Wash Guide](docs/WASH_GUIDE.md)
-* [Companion Ecosystem & Models Database](#companion-ecosystem--models-database)
-* [Troubleshooting & Logs](#troubleshooting--logs)
-* [My Integrations & Lovelace Cards](#my-integrations--lovelace-cards)
-* [Credits & License](#credits--license)
+
+1. [Features](#features)
+2. [Hardware Compatibility](#hardware-compatibility)
+3. [Network Architecture](#network-architecture)
+4. [Installation](#installation)
+5. [Configuration](#configuration)
+6. [Hardware Profile Calibration & Standalone Backups](#hardware-profile-calibration--standalone-backups)
+7. [Entities Provided](#entities-provided)
+8. [Operation & Wash Guide](docs/WASH_GUIDE.md)
+9. [Companion Ecosystem & Models Database](#companion-ecosystem--models-database)
+10. [Troubleshooting & Logs](#troubleshooting--logs)
+11. [My Integrations & Lovelace Cards](#my-integrations--lovelace-cards)
+12. [Credits & License](#credits--license)
 
 ---
 
@@ -75,7 +74,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 
 ## Installation
 
-### Option 1: Via HACS (Recommended)
+### Method 1: Using HACS (Recommended)
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=selvakk2k&repository=ifb-washer-local&category=integration)
 
@@ -83,7 +82,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 2. Click the top-right menu (⋮) → **Custom repositories** → Add `https://github.com/selvakk2k/ifb-washer-local` with category **Integration**.
 3. Search for **IFB Washer Local**, click **Download**, and restart Home Assistant.
 
-### Option 2: Manual Installation
+### Method 2: Manual Installation
 
 1. Download the latest release from GitHub.
 2. Copy the `custom_components/ifb_washer_local` folder into your Home Assistant `<config>/custom_components/` directory.
