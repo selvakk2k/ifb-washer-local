@@ -21,7 +21,11 @@ def mock_hass():
     hass = MagicMock()
     hass.data = {}
     hass.config.path = MagicMock(return_value="/tmp/ha_test_www/ifb_washer_local")
-    hass.async_add_executor_job = AsyncMock(return_value=None)
+
+    async def _async_add_executor_job(target, *args, **kwargs):
+        return target(*args, **kwargs)
+
+    hass.async_add_executor_job = AsyncMock(side_effect=_async_add_executor_job)
     return hass
 
 
@@ -541,6 +545,31 @@ async def test_setup_entry_registers_update_listener_and_reload(mock_hass):
         # Test reload helper
         await async_reload_entry(mock_hass, mock_entry)
         mock_hass.config_entries.async_reload.assert_awaited_once_with("test_entry_123")
+
+
+@pytest.mark.asyncio
+async def test_setup_entry_prewarms_models_lookup(mock_hass):
+    """Test that async_setup_entry invokes async_add_executor_job to pre-warm the catalog."""
+    from custom_components.ifb_washer_local import async_setup_entry
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_prewarm"
+    mock_entry.data = {CONF_HOST: "192.168.0.100", CONF_PORT: 80}
+    mock_entry.options = {}
+    mock_entry.async_on_unload = MagicMock()
+    mock_entry.add_update_listener = MagicMock()
+
+    mock_hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
+
+    with (
+        patch(
+            "custom_components.ifb_washer_local.coordinator.IFBWasherCoordinator.async_config_entry_first_refresh",
+            new_callable=AsyncMock,
+        ),
+    ):
+        result = await async_setup_entry(mock_hass, mock_entry)
+        assert result is True
+        mock_hass.async_add_executor_job.assert_called()
 
 
 

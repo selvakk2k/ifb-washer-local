@@ -31,6 +31,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: IFBWasherConfigEntry) ->
 
     session = async_get_clientsession(hass)
     client = IFBWasherClient(host=host, port=port, session=session)
+    # Pre-warm models lookup catalog in executor to prevent blocking I/O on event loop
+    try:
+        from ifb_washer_models import get_lookup
+
+        await hass.async_add_executor_job(get_lookup)
+    except Exception:
+        pass
+
     coordinator = IFBWasherCoordinator(hass, client, entry=entry)
 
     await coordinator.async_config_entry_first_refresh()

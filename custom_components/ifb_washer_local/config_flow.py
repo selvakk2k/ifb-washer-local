@@ -261,7 +261,9 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Select exact model from the family's catalog."""
-        options = _get_model_options_for_family(self._family)
+        options = await self.hass.async_add_executor_job(
+            _get_model_options_for_family, self._family
+        )
 
         if user_input is not None:
             chosen = user_input[CONF_MODEL]

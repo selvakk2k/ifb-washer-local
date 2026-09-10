@@ -29,7 +29,11 @@ def mock_hass():
     hass.data = {}
     hass.config_entries = MagicMock()
     hass.config_entries.async_update_entry = MagicMock()
-    hass.async_add_executor_job = AsyncMock(return_value=None)
+
+    async def _async_add_executor_job(target, *args, **kwargs):
+        return target(*args, **kwargs)
+
+    hass.async_add_executor_job = AsyncMock(side_effect=_async_add_executor_job)
     return hass
 
 
