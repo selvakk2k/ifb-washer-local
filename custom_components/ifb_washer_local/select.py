@@ -147,9 +147,11 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
     def options(self) -> list[str]:
         """Return the allowed spin speed options for the active program."""
         caps = _get_capabilities_for_coordinator(self.coordinator)
-        if caps and caps.allowed_spins:
-            return list(caps.allowed_spins)
-        return list(SPIN_SPEED_OPTIONS.values())
+        base_options = list(caps.allowed_spins) if caps and caps.allowed_spins else list(SPIN_SPEED_OPTIONS.values())
+        curr = self.current_option
+        if curr and curr not in base_options:
+            base_options.append(curr)
+        return base_options
 
     @property
     def current_option(self) -> str | None:
@@ -202,9 +204,11 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
     def options(self) -> list[str]:
         """Return the allowed temperature options for the active program."""
         caps = _get_capabilities_for_coordinator(self.coordinator)
-        if caps and caps.allowed_temps:
-            return list(caps.allowed_temps)
-        return list(TEMPERATURE_OPTIONS.values())
+        base_options = list(caps.allowed_temps) if caps and caps.allowed_temps else list(TEMPERATURE_OPTIONS.values())
+        curr = self.current_option
+        if curr and curr not in base_options:
+            base_options.append(curr)
+        return base_options
 
     @property
     def current_option(self) -> str | None:
@@ -361,9 +365,11 @@ class IFBWasherDryModeSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
     def options(self) -> list[str]:
         """Return the available drying mode options for current program."""
         caps = _get_capabilities_for_coordinator(self.coordinator)
-        if caps and caps.allowed_dry_modes:
-            return list(caps.allowed_dry_modes)
-        return list(DRY_OPTIONS.values())
+        base_options = list(caps.allowed_dry_modes) if caps and caps.allowed_dry_modes else list(DRY_OPTIONS.values())
+        curr = self.current_option
+        if curr and curr not in base_options:
+            base_options.append(curr)
+        return base_options
 
 
     @property

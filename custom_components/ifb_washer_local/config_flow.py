@@ -575,7 +575,12 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                         base_caps_map,
                         is_washer_dryer=is_wd,
                     )
-                self._calibrated_profile = serialize_capabilities_map(result)
+                self._calibrated_profile = serialize_capabilities_map(
+                    result,
+                    mode=mode,
+                    model=self._model,
+                    family=str(self._family),
+                )
                 _LOGGER.info(
                     "Calibrated %d programs during config flow for IFB %s (mode: %s)",
                     len(result),
@@ -757,22 +762,42 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
     async def async_step_export_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Display active calibrated profile JSON and backup location."""
-        if user_input is not None:
-            return self.async_create_entry(
-                title="",
-                data=getattr(self, "_options_data", {}),
-            )
-
+        """Display active calibrated profile JSON, auto-save to disk, and apply live edits."""
         entry = self._entry
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
         model_name = entry.options.get(CONF_MODEL) or entry.data.get(CONF_MODEL) or "IFB Washing Machine"
         clean_model = model_name.lower().replace(" ", "_").replace("/", "_").replace(".", "_")
         backup_file = f"/config/ifb_washer_profiles/{clean_model}_profile.json"
 
+        if user_input is not None:
+            raw_text = user_input.get("profile_json", "").strip()
+            if raw_text:
+                try:
+                    parsed = json.loads(raw_text)
+                    if isinstance(parsed, dict):
+                        if coordinator:
+                            await coordinator.async_restore_profile(parsed)
+                        else:
+                            caps = deserialize_capabilities_map(parsed)
+                            if caps:
+                                new_data = dict(entry.data)
+                                new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
+                                    caps,
+                                    mode="edited",
+                                    model=model_name,
+                                    family=str(getattr(coordinator, "appliance_family", "washer_dryer")),
+                                )
+                                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                except Exception as exc:
+                    _LOGGER.warning("Could not apply edited profile JSON in export view: %s", exc)
+
+            return self.async_create_entry(
+                title="",
+                data=getattr(self, "_options_data", {}),
+            )
+
         cal_data = entry.options.get(CONF_CALIBRATED_PROFILE) or entry.data.get(CONF_CALIBRATED_PROFILE)
         if cal_data and isinstance(cal_data, dict):
-            # If already an envelope, display directly; otherwise wrap it
             if "capabilities" in cal_data:
                 profile_json = json.dumps(cal_data, indent=2)
             else:
@@ -805,6 +830,24 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             )
             profile_json = json.dumps(envelope, indent=2)
 
+        # Save profile backup to disk asynchronously
+        try:
+            if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
+                config_dir = self.hass.config.config_dir
+                parsed_env = json.loads(profile_json)
+                caps_to_save = deserialize_capabilities_map(parsed_env)
+                if caps_to_save:
+                    await self.hass.async_add_executor_job(
+                        save_profile_backup,
+                        config_dir,
+                        caps_to_save,
+                        "exported",
+                        model_name,
+                        str(getattr(coordinator, "appliance_family", "washer_dryer")),
+                    )
+        except Exception as exc:
+            _LOGGER.debug("Could not auto-save export profile: %s", exc)
+
         schema = vol.Schema(
             {
                 vol.Optional(
@@ -827,42 +870,60 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
     async def async_step_restore_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Allow user to paste profile JSON to restore or import a profile."""
+        """Allow user to upload a .json file or paste profile JSON to restore/import."""
         errors: dict[str, str] = {}
         entry = self._entry
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
 
         if user_input is not None:
             raw_text = user_input.get("profile_json", "").strip()
-            try:
-                parsed = json.loads(raw_text)
-                if not isinstance(parsed, dict):
-                    raise ValueError("JSON root must be an object")
-                if coordinator:
-                    await coordinator.async_restore_profile(parsed)
-                else:
-                    caps = deserialize_capabilities_map(parsed)
-                    if not caps:
-                        raise ValueError("No valid program capabilities found in profile")
-                    new_data = dict(entry.data)
-                    new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
-                        caps,
-                        mode="imported",
-                        model=entry.data.get(CONF_MODEL, "IFB Washing Machine"),
-                    )
-                    self.hass.config_entries.async_update_entry(entry, data=new_data)
+            file_path = user_input.get("profile_file")
 
-                return self.async_create_entry(
-                    title="",
-                    data=getattr(self, "_options_data", {}),
-                )
-            except Exception as exc:  # pylint: disable=broad-except
-                _LOGGER.warning("Failed to restore profile JSON: %s", exc)
-                errors["profile_json"] = "invalid_profile_json"
+            # If a file was uploaded/selected, read its content
+            if file_path:
+                try:
+                    def _read_file(p: str) -> str:
+                        with open(p, "r", encoding="utf-8") as f:
+                            return f.read()
+                    raw_text = await self.hass.async_add_executor_job(_read_file, file_path)
+                except Exception as file_err:
+                    _LOGGER.warning("Could not read uploaded profile file: %s", file_err)
+
+            if not raw_text:
+                errors["base"] = "missing_profile_data"
+            else:
+                try:
+                    parsed = json.loads(raw_text)
+                    if not isinstance(parsed, dict):
+                        raise ValueError("JSON root must be an object")
+                    if coordinator:
+                        await coordinator.async_restore_profile(parsed)
+                    else:
+                        caps = deserialize_capabilities_map(parsed)
+                        if not caps:
+                            raise ValueError("No valid program capabilities found in profile")
+                        new_data = dict(entry.data)
+                        new_data[CONF_CALIBRATED_PROFILE] = serialize_capabilities_map(
+                            caps,
+                            mode="imported",
+                            model=entry.data.get(CONF_MODEL, "IFB Washing Machine"),
+                        )
+                        self.hass.config_entries.async_update_entry(entry, data=new_data)
+
+                    return self.async_create_entry(
+                        title="",
+                        data=getattr(self, "_options_data", {}),
+                    )
+                except Exception as exc:  # pylint: disable=broad-except
+                    _LOGGER.warning("Failed to restore profile JSON: %s", exc)
+                    errors["profile_json"] = "invalid_profile_json"
 
         schema = vol.Schema(
             {
-                vol.Required("profile_json"): selector.TextSelector(
+                vol.Optional("profile_file"): selector.FileSelector(
+                    selector.FileSelectorConfig(accept=".json")
+                ),
+                vol.Optional("profile_json"): selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=True,
                         type=selector.TextSelectorType.TEXT,

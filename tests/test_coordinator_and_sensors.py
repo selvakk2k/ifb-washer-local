@@ -3,6 +3,7 @@
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.ifb_washer_local.const import (
@@ -572,8 +573,36 @@ async def test_feature_switch_entities():
         await prewash_switch.async_turn_on()
 
 
+@pytest.mark.asyncio
+async def test_client_set_steam_and_toggles():
+    """Verify client.set_steam and feature toggle helpers."""
+    from ifb_washer_local.client import IFBWasherClient
+    client = IFBWasherClient("192.168.0.100")
+    client.set_feature_toggle = AsyncMock()
+
+    await client.set_steam(True)
+    client.set_feature_toggle.assert_called_with(19, True)
+
+    await client.set_steam(False)
+    client.set_feature_toggle.assert_called_with(19, False)
 
 
+def test_select_temperature_dynamic_fallback():
+    """Verify temperature select preserves active physical option when not in static table."""
+    from custom_components.ifb_washer_local.select import IFBWasherTemperatureSelect
 
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
 
+    coord = IFBWasherCoordinator(hass, client)
+    state = MagicMock(spec=WasherState)
+    state.program_code = 13
+    state.program_name = "Mix / Daily"
+    state.temperature_name = "20°C"
+    coord.data = state
+
+    temp_select = IFBWasherTemperatureSelect(coord)
+    assert "20°C" in temp_select.options
+    assert temp_select.current_option == "20°C"
 

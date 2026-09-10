@@ -435,60 +435,88 @@ DRY_NAME_TO_CODE["Off"] = 0
 
 @dataclass(frozen=True)
 class ProgramCapabilities:
-    """Allowed options and constraints for a wash program per official Wash Guide Map."""
+    """Operational boundaries and supported options for a specific wash program."""
 
-    allowed_temps: tuple[str, ...]
-    allowed_spins: tuple[str, ...]
+    program_name: str = ""
+    allowed_temps: tuple[str, ...] = ("Cold", "20°C", "30°C", "40°C", "60°C", "95°C")
+    allowed_spins: tuple[str, ...] = (
+        "No Spin",
+        "400 RPM",
+        "600 RPM",
+        "800 RPM",
+        "1000 RPM",
+        "1200 RPM",
+        "1400 RPM",
+    )
     supports_dry: bool = False
     allowed_dry_modes: tuple[str, ...] = ("No Dry",)
-    supports_steam: bool = True
-    supports_prewash: bool = True
-    supports_soak: bool = True
-    supports_time_saver: bool = True
+    max_dry_time_min: int = 0
+    supports_steam: bool = False
+    steam_behavior: str = "none"  # "none", "optional", "mandatory"
+    supports_prewash: bool = False
+    supports_soak: bool = False
+    supports_time_saver: bool = False
     supports_extra_rinse: bool = True
-    supports_hot_rinse: bool = True
+    max_extra_rinses: int = 3
+    supports_hot_rinse: bool = False
+    requires_extra_rinse_for_hot_rinse: bool = True
     supports_rinse_hold: bool = True
-    supports_eco: bool = True
-    supports_aroma: bool = True
-    supports_anti_crease: bool = True
+    supports_eco: bool = False
+    supports_aroma: bool = False
+    supports_anti_crease: bool = False
+    supports_delay_start: bool = True
 
-    def to_dict(self) -> dict[str, bool | list[str]]:
-        """Return capabilities as a dictionary."""
+    def to_dict(self) -> dict[str, Any]:
+        """Convert capabilities to dictionary format."""
         return {
+            "program_name": self.program_name,
             "allowed_temps": list(self.allowed_temps),
             "allowed_spins": list(self.allowed_spins),
             "supports_dry": self.supports_dry,
             "allowed_dry_modes": list(self.allowed_dry_modes),
+            "max_dry_time_min": self.max_dry_time_min,
             "supports_steam": self.supports_steam,
+            "steam_behavior": self.steam_behavior,
             "supports_prewash": self.supports_prewash,
             "supports_soak": self.supports_soak,
             "supports_time_saver": self.supports_time_saver,
             "supports_extra_rinse": self.supports_extra_rinse,
+            "max_extra_rinses": self.max_extra_rinses,
             "supports_hot_rinse": self.supports_hot_rinse,
+            "requires_extra_rinse_for_hot_rinse": self.requires_extra_rinse_for_hot_rinse,
             "supports_rinse_hold": self.supports_rinse_hold,
             "supports_eco": self.supports_eco,
             "supports_aroma": self.supports_aroma,
             "supports_anti_crease": self.supports_anti_crease,
+            "supports_delay_start": self.supports_delay_start,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ProgramCapabilities:
         """Create ProgramCapabilities instance from a dictionary."""
         return cls(
+            program_name=str(data.get("program_name", "")),
             allowed_temps=tuple(data.get("allowed_temps", ())),
             allowed_spins=tuple(data.get("allowed_spins", ())),
             supports_dry=bool(data.get("supports_dry", False)),
             allowed_dry_modes=tuple(data.get("allowed_dry_modes", ("No Dry",))),
-            supports_steam=bool(data.get("supports_steam", True)),
-            supports_prewash=bool(data.get("supports_prewash", True)),
-            supports_soak=bool(data.get("supports_soak", True)),
-            supports_time_saver=bool(data.get("supports_time_saver", True)),
+            max_dry_time_min=int(data.get("max_dry_time_min", 0)),
+            supports_steam=bool(data.get("supports_steam", False)),
+            steam_behavior=str(data.get("steam_behavior", "none")),
+            supports_prewash=bool(data.get("supports_prewash", False)),
+            supports_soak=bool(data.get("supports_soak", False)),
+            supports_time_saver=bool(data.get("supports_time_saver", False)),
             supports_extra_rinse=bool(data.get("supports_extra_rinse", True)),
-            supports_hot_rinse=bool(data.get("supports_hot_rinse", True)),
+            max_extra_rinses=int(data.get("max_extra_rinses", 3)),
+            supports_hot_rinse=bool(data.get("supports_hot_rinse", False)),
+            requires_extra_rinse_for_hot_rinse=bool(
+                data.get("requires_extra_rinse_for_hot_rinse", True)
+            ),
             supports_rinse_hold=bool(data.get("supports_rinse_hold", True)),
-            supports_eco=bool(data.get("supports_eco", True)),
-            supports_aroma=bool(data.get("supports_aroma", True)),
-            supports_anti_crease=bool(data.get("supports_anti_crease", True)),
+            supports_eco=bool(data.get("supports_eco", False)),
+            supports_aroma=bool(data.get("supports_aroma", False)),
+            supports_anti_crease=bool(data.get("supports_anti_crease", False)),
+            supports_delay_start=bool(data.get("supports_delay_start", True)),
         )
 
 
@@ -508,18 +536,12 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
         supports_dry=True,
         allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours", "3 Hours 30 Minutes", "4 Hours", "4 Hours 30 Minutes", "5 Hours", "6 Hours"),
-        supports_steam=False,
-        supports_prewash=False,
-        supports_soak=False,
     ),
     3: ProgramCapabilities(
-        allowed_temps=("Cold", "30°C", "40°C"),
+        allowed_temps=("Cold", "30°C", "40°C", "60°C", "95°C"),
         allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
         supports_dry=True,
-        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Gentle Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours"),
-        supports_steam=True,
-        supports_prewash=False,
-        supports_soak=False,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours", "3 Hours 30 Minutes", "4 Hours"),
     ),
     4: ProgramCapabilities(
         allowed_temps=("Cold",),
@@ -535,11 +557,13 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         supports_eco=False,
     ),
     5: ProgramCapabilities(
-        allowed_temps=("Cold", "30°C", "40°C"),
-        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        allowed_temps=("Cold", "30°C", "40°C", "60°C"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM"),
         supports_dry=False,
         allowed_dry_modes=("No Dry",),
-        supports_steam=True,
+        supports_prewash=False,
+        supports_soak=False,
+        supports_time_saver=False,
     ),
     6: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C"),
@@ -553,30 +577,31 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
     ),
     7: ProgramCapabilities(
         allowed_temps=("Cold", "30°C", "40°C"),
-        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
         supports_dry=True,
-        allowed_dry_modes=("No Dry", "Gentle Dry", "30 Minutes", "1 Hour"),
+        allowed_dry_modes=("No Dry", "Gentle Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours"),
         supports_steam=False,
         supports_prewash=False,
         supports_soak=False,
-        supports_time_saver=False,
     ),
     8: ProgramCapabilities(
-        allowed_temps=("Cold", "40°C", "60°C"),
-        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
-        supports_dry=True,
-        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours", "4 Hours"),
-    ),
-    9: ProgramCapabilities(
-        allowed_temps=("Cold", "40°C", "60°C"),
-        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM"),
+        allowed_temps=("Cold", "30°C", "40°C", "60°C"),
+        allowed_spins=("400 RPM", "600 RPM", "800 RPM", "1000 RPM"),
         supports_dry=True,
         allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours"),
-        supports_steam=True,
+        supports_prewash=False,
+        supports_time_saver=False,
+    ),
+    9: ProgramCapabilities(
+        allowed_temps=("40°C", "60°C", "95°C"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
+        supports_dry=True,
+        allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours"),
+        supports_time_saver=False,
     ),
     10: ProgramCapabilities(
         allowed_temps=("40°C", "60°C", "95°C"),
-        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM"),
+        allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM", "1400 RPM"),
         supports_dry=True,
         allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "1 Hour", "2 Hours", "3 Hours"),
         supports_steam=True,
@@ -594,7 +619,7 @@ PROGRAM_CAPABILITIES_WASHER_DRYER: dict[int, ProgramCapabilities] = {
         allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours", "3 Hours 30 Minutes", "4 Hours"),
     ),
     13: ProgramCapabilities(
-        allowed_temps=("Cold", "30°C", "40°C", "60°C"),
+        allowed_temps=("Cold", "20°C", "30°C", "40°C", "60°C"),
         allowed_spins=("No Spin", "400 RPM", "600 RPM", "800 RPM", "1000 RPM", "1200 RPM"),
         supports_dry=True,
         allowed_dry_modes=("No Dry", "Cupboard Dry", "Iron Dry", "Eco Dry", "30 Minutes", "1 Hour", "1 Hour 30 Minutes", "2 Hours", "2 Hours 30 Minutes", "3 Hours"),

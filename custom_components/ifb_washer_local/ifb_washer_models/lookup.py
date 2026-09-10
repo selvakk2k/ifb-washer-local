@@ -44,7 +44,8 @@ class WasherModelLookup:
         self._programs: list[dict[str, Any]] = []
         self._gating: dict[tuple[str, str], ProgramCapabilities] = {}
         self._special_features: list[dict[str, Any]] = []
-        self._archetypes: dict[str, Any] = {}
+        self._archetypes: dict[str, Any] = []
+        self._aliases_by_normalized: dict[str, str] = {}
         self._load_data()
 
 
@@ -136,6 +137,16 @@ class WasherModelLookup:
             with open(archetypes_file, "r", encoding="utf-8") as f:
                 self._archetypes = json.load(f)
 
+        # 7. Aliases
+        aliases_file = self._data_dir / "aliases.json"
+        if aliases_file.exists():
+            with open(aliases_file, "r", encoding="utf-8") as f:
+                for item in json.load(f):
+                    alias = item.get("alias_name")
+                    canonical = item.get("canonical_name")
+                    if alias and canonical:
+                        self._aliases_by_normalized[_normalize_name(alias)] = canonical
+
     def get_model_info(self, model_name: str) -> ModelInfo | None:
         """Find model information by exact or normalized commercial model name."""
         if not model_name:
@@ -149,7 +160,14 @@ class WasherModelLookup:
         if norm in self._models_by_normalized:
             return self._models_by_normalized[norm]
 
-        # 3. Substring / Token matching
+        # 3. Alias match
+        if norm in self._aliases_by_normalized:
+            target = self._aliases_by_normalized[norm]
+            target_norm = _normalize_name(target)
+            if target_norm in self._models_by_normalized:
+                return self._models_by_normalized[target_norm]
+
+        # 4. Substring / Token matching
         for model in self._models:
             m_norm = _normalize_name(model.model_name)
             if norm in m_norm or m_norm in norm:

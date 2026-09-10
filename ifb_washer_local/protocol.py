@@ -429,12 +429,12 @@ def parse_status_frame(
     extra_rinse_name = EXTRA_RINSE_OPTIONS.get(extra_rinse_count, f"{extra_rinse_count} Rinses")
 
     # Options register 2 (byte 11): bit 0=soil age, bit 1=favorite, bit 2=rinse hold,
-    # bit 3=anti-crease, bit 6=aroma, bit 9=steam (or machine in Steam state)
+    # bit 3=anti-crease, bit 6=aroma
     opt2 = data[11] if len(data) > 11 else 0
     rinse_hold = bool((opt2 >> 2) & 1)
     anti_crease = bool((opt2 >> 3) & 1)
     aroma = bool((opt2 >> 6) & 1)
-    steam = bool(((opt2 >> 9) & 1) or state_code == MachineState.STEAM)
+    steam = bool(state_code == MachineState.STEAM)
 
     # Dry Mode Option (byte 28)
     dry_code = data[28] if len(data) > 28 else 0

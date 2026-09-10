@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
 import logging
 from typing import Any
@@ -391,12 +392,13 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             try:
                 if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
                     config_dir = self.hass.config.config_dir
-                    save_profile_backup(
+                    await self.hass.async_add_executor_job(
+                        save_profile_backup,
                         config_dir,
                         new_caps,
-                        mode=mode,
-                        model=model_name,
-                        family=str(self.appliance_family),
+                        mode,
+                        model_name,
+                        str(self.appliance_family),
                     )
             except Exception as exc:
                 _LOGGER.debug("Could not write standalone profile backup: %s", exc)
@@ -445,12 +447,13 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             try:
                 if hasattr(self.hass, "config") and isinstance(getattr(self.hass.config, "config_dir", None), str):
                     config_dir = self.hass.config.config_dir
-                    save_profile_backup(
+                    await self.hass.async_add_executor_job(
+                        save_profile_backup,
                         config_dir,
                         caps,
-                        mode=meta.get("calibration_mode", "imported"),
-                        model=model_name,
-                        family=meta.get("appliance_family") or str(self.appliance_family),
+                        meta.get("calibration_mode", "imported"),
+                        model_name,
+                        meta.get("appliance_family") or str(self.appliance_family),
                     )
             except Exception:
                 pass

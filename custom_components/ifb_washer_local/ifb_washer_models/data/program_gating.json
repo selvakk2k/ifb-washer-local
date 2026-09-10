@@ -540,6 +540,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C"
     ],
@@ -1200,6 +1201,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C"
     ],
@@ -1860,6 +1862,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C"
     ],
@@ -2520,6 +2523,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C"
     ],
@@ -2683,6 +2687,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -3082,6 +3087,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -3481,6 +3487,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -3880,6 +3887,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -4279,6 +4287,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -4678,6 +4687,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -5077,6 +5087,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -5514,6 +5525,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -5831,6 +5843,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
@@ -6148,6 +6161,7 @@
     "program_name": "Mix / Daily",
     "allowed_temps": [
       "Cold",
+      "20\u00b0C",
       "30\u00b0C",
       "40\u00b0C",
       "60\u00b0C"
