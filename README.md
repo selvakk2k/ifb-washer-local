@@ -24,6 +24,8 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 * [Entities Provided](#entities-provided)
 * [Operation & Wash Guide](docs/WASH_GUIDE.md)
 * [Companion Ecosystem & Models Database](#companion-ecosystem--models-database)
+* [Troubleshooting & Logs](#troubleshooting--logs)
+* [My Integrations & Lovelace Cards](#my-integrations--lovelace-cards)
 * [Credits & License](#credits--license)
 
 ---
@@ -176,6 +178,32 @@ For a complete reference on all available programs (including Express 15', Refre
 * **Hardware Database & Program Gating**: For programmatic model lookups, rotary selector switch detents, and capability gating rules, see the companion package [`ifb-washer-models` on PyPI](https://pypi.org/project/ifb-washer-models/) and [GitHub](https://github.com/selvakk2k/ifb-washer-models).
 * **Lovelace Frontend Card**: For the dynamic radial drum animation and smart appliance UI, install the companion [`ifb-washer-card`](https://github.com/selvakk2k/ifb-washer-card).
 * **Wash Guide & Programs**: For detailed program cycle specifications and modifiers, consult the [Operation & Wash Guide](docs/WASH_GUIDE.md).
+
+---
+
+## Troubleshooting & Logs
+
+### 1. Enabling Debug Logs
+
+#### Via the UI (Dynamic, no restart required)
+1. Go to **Settings → Devices & Services** → Select the **IFB Washer Local** card.
+2. Click the top-right menu (**⋮**) → **Enable debug logging**.
+3. Perform wash cycle operations, then click **Disable debug logging** to download the log file.
+
+#### Via `configuration.yaml` (Persistent / Startup Issues)
+To view raw local HTTP JSON payloads and coordinator polling logs across Home Assistant restarts, add this to your `configuration.yaml` and restart Home Assistant:
+
+```yaml
+logger:
+  default: warning
+  logs:
+    custom_components.ifb_washer_local: debug
+    ifb_washer_local: debug
+```
+
+### 2. Network Troubleshooting
+* **Static DHCP Reservation**: Reserve a static IP address for your washing machine in your Wi-Fi router settings to avoid address changes when the machine powers down into Standby.
+* **Direct LAN Reachability**: Verify your Home Assistant server can reach the washer on port 80 over your local subnet without cross-VLAN firewall blocks.
 
 ---
 
