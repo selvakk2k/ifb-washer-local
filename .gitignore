@@ -58,3 +58,8 @@ Thumbs.db
 # Manuals & Scanned Assets
 manuals/
 *.pdf
+
+# Release Archives & Artifacts
+*.zip
+dist/
+build/
