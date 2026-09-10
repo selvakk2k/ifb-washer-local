@@ -63,12 +63,12 @@
       },
       "calibrate": {
         "title": "Calibrate Capabilities",
-        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Probe (~30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Simple (~1m)**: Verifies all programs on dial within model constraints.\n- **Detailed (~5m)**: Full capability discovery across all dial positions.",
+        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Probe (~2m)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Simple (~4-5m)**: Verifies all programs on dial within model constraints.\n- **Detailed (~15m)**: Exhaustive physical capability discovery across all dial positions.",
         "menu_options": {
           "calibrate_standard": "Standard (Skip Test)",
-          "calibrate_quick": "Quick Probe (~30s)",
-          "calibrate_simple": "Simple (~1m)",
-          "calibrate_detailed": "Detailed Probe (~5m)"
+          "calibrate_quick": "Quick Probe (~2m)",
+          "calibrate_simple": "Simple (~4-5m)",
+          "calibrate_detailed": "Detailed Probe (~15m)"
         }
       },
       "calibrate_progress": {
@@ -113,7 +113,18 @@
           "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s).",
           "calibration_action": "Select to run online capability calibration against your machine or reset to defaults."
         }
+      },
+      "calibrate_progress": {
+        "title": "Calibrating Capabilities",
+        "description": "Probing machine capabilities. Please wait while Home Assistant verifies your hardware options."
+      },
+      "finish_options": {
+        "title": "Calibration Complete",
+        "description": "Capability profile calibration and options update have successfully finished."
       }
+    },
+    "progress": {
+      "calibrate_progress": "Probing program capabilities on your washing machine..."
     }
   },
   "entity": {

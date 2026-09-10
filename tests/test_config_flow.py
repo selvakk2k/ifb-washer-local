@@ -328,3 +328,43 @@ async def test_options_flow_init_and_save(mock_hass):
     assert result2["data"]["scan_interval_standby"] == 20
     assert result2["data"]["scan_interval_running"] == 4
 
+
+@pytest.mark.asyncio
+async def test_options_flow_calibration_progress(mock_hass):
+    """Test options flow calibration triggers async_show_progress cleanly."""
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_FAMILY: ApplianceFamily.WASHER_DRYER,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+    mock_entry.options = {}
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.async_calibrate = AsyncMock(return_value={})
+    mock_hass.data = {"ifb_washer_local": {"test_entry_123": mock_coordinator}}
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    # Select simple calibration in options
+    result = await options_flow.async_step_init({
+        CONF_MODEL: "WD Executive ZXS",
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        "calibration_action": "simple",
+    })
+    assert result["type"] == FlowResultType.SHOW_PROGRESS
+    assert result["step_id"] == "calibrate_progress"
+
+    # Progress done step
+    progress_done = await options_flow.async_step_calibrate_progress()
+    assert progress_done["type"] == FlowResultType.SHOW_PROGRESS_DONE
+
+    # Finish step
+    finish_result = await options_flow.async_step_finish_options()
+    assert finish_result["type"] == FlowResultType.CREATE_ENTRY
+    assert finish_result["data"][CONF_MODEL] == "WD Executive ZXS"
+

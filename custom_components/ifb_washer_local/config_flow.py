@@ -495,19 +495,19 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_calibrate_quick(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run quick ~30s hardware calibration on core daily programs."""
+        """Run quick ~2m hardware calibration on core daily programs."""
         return await self._start_calibration("quick")
 
     async def async_step_calibrate_simple(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run simple ~1m model-constrained calibration across all dial positions."""
+        """Run simple ~4-5 min model-constrained calibration across all dial positions."""
         return await self._start_calibration("simple")
 
     async def async_step_calibrate_detailed(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run full ~5m detailed brute-force hardware calibration across all dial positions."""
+        """Run full ~15 min detailed brute-force hardware calibration across all dial positions."""
         return await self._start_calibration("detailed")
 
     async def _start_calibration(self, mode: str) -> ConfigFlowResult:
@@ -523,6 +523,13 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         if self._client is None:
             session = async_get_clientsession(self.hass)
             self._client = IFBWasherClient(host=self._host, port=self._port, session=session)
+
+        # Ensure appliance is awake and powered ON
+        try:
+            await self._client.turn_on()
+            await asyncio.sleep(0.5)
+        except Exception:
+            pass
 
         prog_map = FAMILY_PROGRAM_MATRICES.get(
             self._family, PROGRAM_CODES_WASHER_DRYER
@@ -649,11 +656,23 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         entry = self._entry
 
         if user_input is not None:
+            self._options_data = {
+                CONF_MODEL: user_input[CONF_MODEL],
+                CONF_SCAN_INTERVAL_STANDBY: user_input[CONF_SCAN_INTERVAL_STANDBY],
+                CONF_SCAN_INTERVAL_RUNNING: user_input[CONF_SCAN_INTERVAL_RUNNING],
+            }
+
             cal_action = user_input.get("calibration_action", "none")
             if cal_action in ("quick", "simple", "detailed"):
                 coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
                 if coordinator:
-                    await coordinator.async_calibrate(mode=cal_action)
+                    return self.async_show_progress(
+                        step_id="calibrate_progress",
+                        progress_action="calibrate_progress",
+                        progress_task=self.hass.async_create_task(
+                            coordinator.async_calibrate(mode=cal_action)
+                        ),
+                    )
             elif cal_action == "reset":
                 new_data = dict(entry.data)
                 new_data.pop(CONF_CALIBRATED_PROFILE, None)
@@ -665,11 +684,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
             return self.async_create_entry(
                 title="",
-                data={
-                    CONF_MODEL: user_input[CONF_MODEL],
-                    CONF_SCAN_INTERVAL_STANDBY: user_input[CONF_SCAN_INTERVAL_STANDBY],
-                    CONF_SCAN_INTERVAL_RUNNING: user_input[CONF_SCAN_INTERVAL_RUNNING],
-                },
+                data=self._options_data,
             )
 
         current_standby = entry.options.get(
@@ -710,9 +725,9 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                     selector.SelectSelectorConfig(
                         options=[
                             selector.SelectOptionDict(value="none", label="Keep Current Profile"),
-                            selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~30s)"),
-                            selector.SelectOptionDict(value="simple", label="Run Simple Calibration (~1m)"),
-                            selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~5m)"),
+                            selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~2m)"),
+                            selector.SelectOptionDict(value="simple", label="Run Simple Calibration (~4-5m)"),
+                            selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~15m)"),
                             selector.SelectOptionDict(value="reset", label="Reset to Standard Catalog Defaults"),
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,
@@ -724,5 +739,20 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=schema,
+        )
+
+    async def async_step_calibrate_progress(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle completion of calibration progress in options flow."""
+        return self.async_show_progress_done(next_step_id="finish_options")
+
+    async def async_step_finish_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Finalize options update once calibration task completes."""
+        return self.async_create_entry(
+            title="",
+            data=getattr(self, "_options_data", {}),
         )
 

@@ -184,7 +184,14 @@ async def calibrate_appliance_quick(
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
     delay_between_cmds: float = 0.35,
 ) -> dict[int, ProgramCapabilities]:
-    """Run a fast ~30s calibration on key daily programs (Mix/Daily, Cotton, Wash+Dry)."""
+    """Run a fast ~2m calibration on key daily programs (Mix/Daily, Cotton, Wash+Dry)."""
+    # Ensure machine display and MCU are powered ON
+    try:
+        await client.turn_on()
+        await asyncio.sleep(delay_between_cmds * 2)
+    except Exception as exc:
+        _LOGGER.debug("Could not send power on before quick calibration: %s", exc)
+
     calibrated_map: dict[int, ProgramCapabilities] = dict(base_caps_map)
 
     # Priority programs to calibrate quickly
@@ -230,7 +237,14 @@ async def calibrate_appliance_simple(
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
     delay_between_cmds: float = 0.3,
 ) -> dict[int, ProgramCapabilities]:
-    """Run a fast ~1 min model-constrained calibration across all dial programs."""
+    """Run a ~4-5 min model-constrained calibration across all dial programs."""
+    # Ensure machine display and MCU are powered ON
+    try:
+        await client.turn_on()
+        await asyncio.sleep(delay_between_cmds * 2)
+    except Exception as exc:
+        _LOGGER.debug("Could not send power on before simple calibration: %s", exc)
+
     calibrated_map: dict[int, ProgramCapabilities] = dict(base_caps_map)
     codes = list(program_map.keys())
     total = len(codes)
@@ -284,7 +298,14 @@ async def calibrate_appliance_detailed(
     progress_callback: Optional[Callable[[int, int, str], None]] = None,
     delay_between_cmds: float = 0.35,
 ) -> dict[int, ProgramCapabilities]:
-    """Run an exhaustive ~5 min brute-force calibration across all dial positions."""
+    """Run an exhaustive ~15 min brute-force calibration across all dial positions."""
+    # Ensure machine display and MCU are powered ON
+    try:
+        await client.turn_on()
+        await asyncio.sleep(delay_between_cmds * 2)
+    except Exception as exc:
+        _LOGGER.debug("Could not send power on before detailed calibration: %s", exc)
+
     calibrated_map: dict[int, ProgramCapabilities] = dict(base_caps_map)
     codes = list(program_map.keys())
     total = len(codes)
