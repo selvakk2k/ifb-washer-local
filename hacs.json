@@ -1,3 +1,7 @@
 {
-  "name": "IFB Washer Local"
+  "name": "IFB Washer Local",
+  "render_readme": true,
+  "country": [
+    "IN"
+  ]
 }
