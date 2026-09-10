@@ -78,7 +78,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=selvakk2k&repository=ifb-washer-local&category=integration)
 
 1. Click the **Open repository in HACS** button above, or open **HACS** from your Home Assistant sidebar.
-2. If installing as a custom repository: click the top-right menu (⋮) → **Custom repositories** → Add `https://github.com/selvakk2k/ifb-washer-local` (Category: *Integration*).
+2. Click the top-right menu (⋮) → **Custom repositories** → Add `https://github.com/selvakk2k/ifb-washer-local` with category **Integration**.
 3. Search for **IFB Washer Local**, click **Download**, and restart Home Assistant.
 
 ### Option 2: Manual Installation
