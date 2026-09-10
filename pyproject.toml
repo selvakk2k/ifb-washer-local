@@ -25,6 +25,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "aiohttp>=3.8.0",
+    "ifb-washer-models>=1.0.2,<2.0.0",
 ]
 
 [project.optional-dependencies]

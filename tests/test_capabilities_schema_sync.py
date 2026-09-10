@@ -2,9 +2,7 @@
 
 import dataclasses
 from ifb_washer_local.const import ProgramCapabilities as LocalProgramCapabilities
-from custom_components.ifb_washer_local.ifb_washer_models.const import (
-    ProgramCapabilities as ModelsProgramCapabilities,
-)
+from ifb_washer_models.const import ProgramCapabilities as ModelsProgramCapabilities
 
 
 def test_program_capabilities_fields_match():

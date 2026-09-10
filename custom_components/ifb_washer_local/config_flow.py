@@ -110,10 +110,7 @@ MACHINE_TYPE_OPTIONS = [
 def _get_model_options_for_family(family: str) -> list[selector.SelectOptionDict]:
     """Get list of model options from ifb_washer_models catalog."""
     try:
-        try:
-            from ifb_washer_models import get_lookup
-        except ImportError:
-            from .ifb_washer_models import get_lookup
+        from ifb_washer_models import get_lookup
         lookup = get_lookup()
         models = lookup.all_models
 

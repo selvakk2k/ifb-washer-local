@@ -280,10 +280,7 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
         # 2. Second priority: ifb_washer_models catalog lookup
         try:
-            try:
-                from ifb_washer_models import get_lookup
-            except ImportError:
-                from .ifb_washer_models import get_lookup
+            from ifb_washer_models import get_lookup
             lookup = get_lookup()
             manual_code = getattr(self, "manual_code", "MAN_742_E")
             prog_name = self.program_map.get(program_code, str(program_code))
