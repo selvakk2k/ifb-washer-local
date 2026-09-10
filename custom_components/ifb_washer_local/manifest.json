@@ -8,7 +8,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/selvakk2k/ifb-washer-local/issues",
   "requirements": [
-    "ifb-washer-models>=1.0.1,<2.0.0"
+    "ifb-washer-models>=1.0.2,<2.0.0"
   ],
   "version": "0.1.0-beta.6"
 }
