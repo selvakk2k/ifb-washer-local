@@ -63,17 +63,29 @@
       },
       "calibrate": {
         "title": "Calibrate Capabilities",
-        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Probe (~30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Detailed Probe (~2m)**: Full probe across all programs on the dial.",
+        "description": "Calibration safely probes machine capabilities (spin ceilings, Rinse Hold latching, temperature limits, extra rinse counts, dry modes) to generate a custom profile for **{model_name}**.\n\n- **Standard**: Skip live testing and use catalog defaults.\n- **Quick Probe (~30s)**: Fast probe on core programs (Mix/Daily, Cotton, Wash+Dry).\n- **Simple (~1m)**: Verifies all programs on dial within model constraints.\n- **Detailed (~5m)**: Full capability discovery across all dial positions.",
         "menu_options": {
           "calibrate_standard": "Standard (Skip Test)",
           "calibrate_quick": "Quick Probe (~30s)",
-          "calibrate_detailed": "Detailed Probe (~2m)"
+          "calibrate_simple": "Simple (~1m)",
+          "calibrate_detailed": "Detailed Probe (~5m)"
         }
+      },
+      "calibrate_progress": {
+        "title": "Calibrating Capabilities",
+        "description": "Probing machine capabilities. Please wait while Home Assistant verifies your hardware options."
+      },
+      "finish_calibration": {
+        "title": "Calibration Complete",
+        "description": "Capability profile calibration has successfully finished."
       },
       "custom": {
         "title": "Custom Configuration",
         "description": "Your IFB washing machine will be configured in manual mode."
       }
+    },
+    "progress": {
+      "calibrate_progress": "Probing program capabilities on your washing machine..."
     },
     "error": {
       "cannot_connect": "Failed to connect to the washing machine. Please verify the IP address and ensure the machine is powered on.",

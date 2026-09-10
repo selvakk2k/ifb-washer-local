@@ -27,6 +27,7 @@ from .exceptions import (
 from .profiler import (
     calibrate_appliance_detailed,
     calibrate_appliance_quick,
+    calibrate_appliance_simple,
     deserialize_capabilities_map,
     probe_single_program,
     serialize_capabilities_map,
@@ -73,6 +74,7 @@ __all__ = [
     "build_user_option_command",
     "calibrate_appliance_detailed",
     "calibrate_appliance_quick",
+    "calibrate_appliance_simple",
     "compute_checksums",
     "deserialize_capabilities_map",
     "detect_program_from_telemetry",

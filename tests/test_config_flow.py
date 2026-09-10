@@ -167,8 +167,50 @@ async def test_config_flow_quick_calibration(mock_hass):
         ),
     ):
         result = await flow.async_step_calibrate_quick()
-        assert result["type"] == FlowResultType.CREATE_ENTRY
-        assert result["data"][CONF_MODEL] == "WD Executive ZXS"
+        assert result["type"] == FlowResultType.SHOW_PROGRESS
+        assert result["step_id"] == "calibrate_progress"
+
+        progress_done = await flow.async_step_calibrate_progress()
+        assert progress_done["type"] == FlowResultType.SHOW_PROGRESS_DONE
+
+        finish_result = await flow.async_step_finish_calibration()
+        assert finish_result["type"] == FlowResultType.CREATE_ENTRY
+        assert finish_result["data"][CONF_MODEL] == "WD Executive ZXS"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_simple_calibration(mock_hass):
+    """Test simple calibration execution during setup."""
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow._host = "192.168.0.100"
+    flow._port = 80
+    flow._family = ApplianceFamily.WASHER_DRYER
+    flow._model = "WD Executive ZXS"
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.is_running = False
+    mock_state.is_paused = False
+
+    with (
+        patch(
+            "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+            new_callable=AsyncMock,
+            return_value=mock_state,
+        ),
+        patch(
+            "custom_components.ifb_washer_local.config_flow.calibrate_appliance_simple",
+            new_callable=AsyncMock,
+            return_value={},
+        ),
+    ):
+        result = await flow.async_step_calibrate_simple()
+        assert result["type"] == FlowResultType.SHOW_PROGRESS
+        assert result["step_id"] == "calibrate_progress"
+
+        finish_result = await flow.async_step_finish_calibration()
+        assert finish_result["type"] == FlowResultType.CREATE_ENTRY
+        assert finish_result["data"][CONF_MODEL] == "WD Executive ZXS"
 
 
 

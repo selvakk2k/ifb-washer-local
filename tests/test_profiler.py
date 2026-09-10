@@ -12,6 +12,7 @@ from ifb_washer_local import (
     WasherState,
     calibrate_appliance_detailed,
     calibrate_appliance_quick,
+    calibrate_appliance_simple,
     deserialize_capabilities_map,
     probe_single_program,
     serialize_capabilities_map,
@@ -163,6 +164,29 @@ async def test_calibrate_appliance_quick():
 
     assert 1 in calibrated
     assert 13 in calibrated
+    assert 15 in calibrated
+
+
+@pytest.mark.asyncio
+async def test_calibrate_appliance_simple():
+    """Test simple calibration iterates over all mapped programs within constraints."""
+    client = MagicMock(spec=IFBWasherClient)
+    client.select_program = AsyncMock()
+    client._send_raw_command = AsyncMock()
+    client.get_state = AsyncMock(return_value=_build_mock_washer_state())
+
+    prog_map = {1: "Cotton", 13: "Mix / Daily", 14: "CradleWash®", 15: "Wash + Dry 60"}
+    calibrated = await calibrate_appliance_simple(
+        client,
+        program_map=prog_map,
+        base_caps_map=PROGRAM_CAPABILITIES_WASHER_DRYER,
+        is_washer_dryer=True,
+        delay_between_cmds=0.001,
+    )
+
+    assert 1 in calibrated
+    assert 13 in calibrated
+    assert 14 in calibrated
     assert 15 in calibrated
 
 

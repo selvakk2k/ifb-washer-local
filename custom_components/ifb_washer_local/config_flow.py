@@ -29,6 +29,7 @@ try:
         WasherState,
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
+        calibrate_appliance_simple,
         serialize_capabilities_map,
     )
     from .ifb_washer_local.const import (
@@ -54,6 +55,7 @@ except (ImportError, ValueError):
         WasherState,
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
+        calibrate_appliance_simple,
         serialize_capabilities_map,
     )
     from ifb_washer_local.const import (  # type: ignore[import-not-found, import-untyped]
@@ -469,10 +471,15 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_calibrate(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 5: Would you like to calibrate your device?"""
+        """Prompt user to choose hardware capability calibration mode."""
         return self.async_show_menu(
             step_id="calibrate",
-            menu_options=["calibrate_standard", "calibrate_quick", "calibrate_detailed"],
+            menu_options=[
+                "calibrate_standard",
+                "calibrate_quick",
+                "calibrate_simple",
+                "calibrate_detailed",
+            ],
             description_placeholders={
                 "model_name": self._model,
             },
@@ -488,17 +495,31 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_calibrate_quick(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run quick ~20-30s hardware calibration on core daily programs."""
-        return await self._run_calibration(mode="quick")
+        """Run quick ~30s hardware calibration on core daily programs."""
+        return await self._start_calibration("quick")
+
+    async def async_step_calibrate_simple(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Run simple ~1m model-constrained calibration across all dial positions."""
+        return await self._start_calibration("simple")
 
     async def async_step_calibrate_detailed(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Run full ~1.5-2m detailed hardware calibration across all dial positions."""
-        return await self._run_calibration(mode="detailed")
+        """Run full ~5m detailed brute-force hardware calibration across all dial positions."""
+        return await self._start_calibration("detailed")
 
-    async def _run_calibration(self, mode: str) -> ConfigFlowResult:
-        """Execute hardware probe with live client."""
+    async def _start_calibration(self, mode: str) -> ConfigFlowResult:
+        """Start async calibration task with Home Assistant native progress screen."""
+        return self.async_show_progress(
+            step_id="calibrate_progress",
+            progress_action="calibrate_progress",
+            progress_task=self.hass.async_create_task(self._async_run_calibration_task(mode)),
+        )
+
+    async def _async_run_calibration_task(self, mode: str) -> None:
+        """Execute hardware probe task."""
         if self._client is None:
             session = async_get_clientsession(self.hass)
             self._client = IFBWasherClient(host=self._host, port=self._port, session=session)
@@ -525,6 +546,13 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                         base_caps_map,
                         is_washer_dryer=is_wd,
                     )
+                elif mode == "simple":
+                    result = await calibrate_appliance_simple(
+                        self._client,
+                        prog_map,
+                        base_caps_map,
+                        is_washer_dryer=is_wd,
+                    )
                 else:
                     result = await calibrate_appliance_quick(
                         self._client,
@@ -534,13 +562,24 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
                 self._calibrated_profile = serialize_capabilities_map(result)
                 _LOGGER.info(
-                    "Calibrated %d programs during config flow for IFB %s",
+                    "Calibrated %d programs during config flow for IFB %s (mode: %s)",
                     len(result),
                     self._model,
+                    mode,
                 )
         except Exception as exc:  # pylint: disable=broad-except
             _LOGGER.warning("Appliance calibration error during setup: %s", exc)
 
+    async def async_step_calibrate_progress(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle completion of the calibration progress task."""
+        return self.async_show_progress_done(next_step_id="finish_calibration")
+
+    async def async_step_finish_calibration(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Create entry once calibration completes."""
         return self._create_entry()
 
     async def async_step_custom(
@@ -603,7 +642,6 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             pass
         raise RuntimeError("No config entry found in options flow")
 
-
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -612,7 +650,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
         if user_input is not None:
             cal_action = user_input.get("calibration_action", "none")
-            if cal_action in ("quick", "detailed"):
+            if cal_action in ("quick", "simple", "detailed"):
                 coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
                 if coordinator:
                     await coordinator.async_calibrate(mode=cal_action)
@@ -673,7 +711,8 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                         options=[
                             selector.SelectOptionDict(value="none", label="Keep Current Profile"),
                             selector.SelectOptionDict(value="quick", label="Run Quick Calibration (~30s)"),
-                            selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~2m)"),
+                            selector.SelectOptionDict(value="simple", label="Run Simple Calibration (~1m)"),
+                            selector.SelectOptionDict(value="detailed", label="Run Detailed Calibration (~5m)"),
                             selector.SelectOptionDict(value="reset", label="Reset to Standard Catalog Defaults"),
                         ],
                         mode=selector.SelectSelectorMode.DROPDOWN,

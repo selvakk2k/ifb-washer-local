@@ -28,6 +28,7 @@ try:
         WasherState,
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
+        calibrate_appliance_simple,
         deserialize_capabilities_map,
         serialize_capabilities_map,
     )
@@ -50,6 +51,7 @@ except (ImportError, ValueError):
         WasherState,
         calibrate_appliance_detailed,
         calibrate_appliance_quick,
+        calibrate_appliance_simple,
         deserialize_capabilities_map,
         serialize_capabilities_map,
     )
@@ -324,6 +326,13 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         try:
             if mode == "detailed":
                 new_caps = await calibrate_appliance_detailed(
+                    self.client,
+                    self.program_map,
+                    base_map,
+                    is_washer_dryer=is_wd,
+                )
+            elif mode == "simple":
+                new_caps = await calibrate_appliance_simple(
                     self.client,
                     self.program_map,
                     base_map,
