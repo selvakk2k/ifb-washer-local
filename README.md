@@ -1,7 +1,8 @@
 # IFB Washer Local Integration (`ifb-washer-local`)
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
-[![Version](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases)
+[![Stable](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?label=Stable&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases/latest)
+[![Beta](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?include_prereleases&label=Beta&color=orange&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases)
 [![AI-Assisted](https://img.shields.io/badge/AI%20Assisted-Antigravity%20%7C%20Claude-blueviolet?style=flat-square&logo=google)](https://github.com/selvakk2k)
 [![AI Attribution](https://img.shields.io/badge/AI%20Attribution-AIA%20PAI%20Nc%20Hin-orange?style=flat-square)](https://aiattribution.github.io/interpret-attribution)
 
@@ -19,6 +20,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
   * [Option 1: HACS Custom Repository](#option-1-hacs-custom-repository)
   * [Option 2: Manual Installation](#option-2-manual-installation)
 * [Configuration](#configuration)
+* [Hardware Profile Calibration & Standalone Backups](#hardware-profile-calibration--standalone-backups)
 * [Entities Provided](#entities-provided)
 * [Operation & Wash Guide](docs/WASH_GUIDE.md)
 * [Python Library Usage](#python-library-usage)
@@ -32,6 +34,8 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 * **Instant Telemetry**: Live updates for cycle progress, remaining duration, active program, motor speed (RPM), and water temperature.
 * **Full Remote Controls**: Start, pause, cancel, and turn off the machine directly from Home Assistant.
 * **Option Customization**: Remote selection of wash programs, spin speed, temperature, extra rinse, dry modes, child lock, and wash modifiers (pre-wash, soak, steam, aroma, etc.).
+* **Hardware Profile Calibration**: Automated, non-intrusive capability discovery directly from physical machine firmware for model-accurate program limits.
+* **Standalone Profile Backups**: Automated JSON profile backups with privacy-safe host IP redaction and full UI Export/Import support.
 * **Adaptive Polling**: Automatically speeds up polling intervals during active wash cycles (every 5 seconds) and relaxes while idle in standby (every 15 seconds) to minimize local network traffic.
 * **Zero Authentication Friction**: Direct binary packet communication eliminates expired auth tokens and cloud outages.
 
@@ -41,8 +45,8 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 
 | Model Series | Connectivity | Tested Functionality | Status |
 | :--- | :--- | :--- | :--- |
-| IFB Washer Dryer 742 Series | Local Wi-Fi (Port 80) | Live Telemetry, Program Selection, Child Lock, Start/Pause | ✅ Hardware Verified |
-| IFB Front Load Senator / Executive Series | Local Wi-Fi (Port 80) | Status telemetry and basic controls | ⚠️ Experimental |
+| IFB Washer Dryer 742 Series | Local Wi-Fi (Port 80) | Live Telemetry, Program Selection, Child Lock, Start/Pause, Heated Dry | ✅ Hardware Verified |
+| IFB Front Load Senator / Executive Series | Local Wi-Fi (Port 80) | Status telemetry, Program Selection, and basic controls | ⚠️ Experimental |
 | IFB Top Load Washers | Local Wi-Fi (Port 80) | Status query frame supported | ⚠️ Experimental |
 
 ---
@@ -91,6 +95,25 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 2. Click **Add Integration** and search for **IFB Washer Local**.
 3. Enter the local IP address assigned to your washing machine (e.g. `192.168.0.100`) and click **Submit**.
 4. *(Recommended)* Reserve a static IP for your washing machine in your home Wi-Fi router settings.
+
+---
+
+## Hardware Profile Calibration & Standalone Backups
+
+The integration can probe your physical appliance while in Standby to build a model-accurate capability map (allowed temperatures, spin speeds, dry modes, and modifiers per program).
+
+### Running Calibration
+1. Navigate to **Settings** > **Devices & Services** > **IFB Washer Local** > **Configure**.
+2. Choose **Calibrate Hardware Capabilities Profile** and select a probing mode:
+   * **Quick (~2 minutes)**: Probes 8 core wash programs.
+   * **Simple (~4-5 minutes)**: Probes all 14 standard dial programs.
+   * **Detailed (~12-14 minutes)**: Full deep scan across all programs and modifier combinations with conservative delays.
+
+### Standalone Profile Backups & Portability
+* **Automatic Local File**: Calibrated profiles are automatically saved to `/config/ifb_washer_profiles/{model}_profile.json` inside your Home Assistant directory.
+* **Export / View Active Profile**: View and copy the active profile JSON envelope directly from the Configure menu.
+* **Restore / Import Profile**: Paste or restore any previously saved profile JSON to instantly configure capabilities without re-probing.
+* **Privacy Safe**: All exported profile envelopes omit host IP addresses and network identifiers.
 
 ---
 
