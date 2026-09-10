@@ -145,7 +145,7 @@ async def probe_single_program(
     allowed_dry: list[str] = ["No Dry"]
     supports_dry = base_caps.supports_dry
     if is_washer_dryer and supports_dry:
-        for d_code in [1, 2, 7, 8]:
+        for d_code in [1, 2, 3, 4, 5, 6, 7, 8, 12, 13, 14, 15, 16, 17]:
             try:
                 pkt = build_user_option_command(HIL_OPTION_DRY, d_code)
                 await client._send_raw_command(pkt)

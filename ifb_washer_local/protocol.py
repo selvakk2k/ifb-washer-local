@@ -111,6 +111,9 @@ def build_user_option_command(hil_id: int, option_value: int) -> bytes:
     if hil_id == HIL_OPTION_SPIN:
         val_high = (option_value >> 8) & 0xFF
         val_low = option_value & 0xFF
+    elif hil_id == HIL_OPTION_DELAY:
+        val_high = 0x00
+        val_low = option_value & 0xFF
     else:
         val_high = option_value & 0xFF
         val_low = 0x00
