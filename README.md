@@ -6,7 +6,7 @@
 [![AI-Assisted](https://img.shields.io/badge/AI%20Assisted-Antigravity%20%7C%20Claude-blueviolet?style=flat-square&logo=google)](https://github.com/selvakk2k)
 [![AI Attribution](https://img.shields.io/badge/AI%20Attribution-AIA%20PAI%20Nc%20Hin-orange?style=flat-square)](https://aiattribution.github.io/interpret-attribution)
 
-Zero-cloud, 100% local Home Assistant integration and standalone Python library for IFB front-load washing machines and washer dryers. 
+Zero-cloud, 100% local Home Assistant custom integration for IFB front-load washing machines and washer dryers. 
 
 Directly communicates with the internal Wi-Fi module on port 80 over your local home network without requiring cloud accounts, mobile apps, SMS OTPs, or active internet connectivity.
 
@@ -23,7 +23,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 * [Hardware Profile Calibration & Standalone Backups](#hardware-profile-calibration--standalone-backups)
 * [Entities Provided](#entities-provided)
 * [Operation & Wash Guide](docs/WASH_GUIDE.md)
-* [Python Library Usage](#python-library-usage)
+* [Companion Ecosystem & Models Database](#companion-ecosystem--models-database)
 * [Credits & License](#credits--license)
 
 ---
@@ -166,38 +166,11 @@ For a complete reference on all available programs (including Express 15', Refre
 
 ---
 
-## Python Library Usage
+## Companion Ecosystem & Models Database
 
-The companion `ifb_washer_local` library can be used independently of Home Assistant in any Python script:
-
-```python
-import asyncio
-from ifb_washer_local import IFBWasherClient
-
-async def main():
-    async with IFBWasherClient(host="192.168.0.100") as client:
-        # Read live state
-        state = await client.get_state()
-        print(f"Program: {state.program_name}")
-        print(f"Time Remaining: {state.remaining_minutes} min")
-        print(f"State: {state.state_name}")
-        print(f"Child Lock: {state.child_lock}")
-        print(f"Extra Rinse: {state.extra_rinse_name}")
-        print(f"Dry Mode: {state.dry_mode_name}")
-
-        # Select Mix / Daily program (Code 13)
-        await client.select_program(program_code=13)
-
-        # Configure cycle options and modifiers
-        await client.set_extra_rinse(1)
-        await client.set_steam(True)
-        await client.set_prewash(True)
-
-        # Toggle Child Lock
-        await client.set_child_lock(True)
-
-asyncio.run(main())
-```
+* **Hardware Database & Program Gating**: For programmatic model lookups, rotary selector switch detents, and capability gating rules, see the companion Python database [`ifb-washer-models`](https://github.com/selvakk2k/ifb-washer-models).
+* **Lovelace Frontend Card**: For the dynamic radial drum animation and smart appliance UI, install the companion [`ifb-washer-card`](https://github.com/selvakk2k/ifb-washer-card).
+* **Wash Guide & Programs**: For detailed program cycle specifications and modifiers, consult the [Operation & Wash Guide](docs/WASH_GUIDE.md).
 
 ---
 
