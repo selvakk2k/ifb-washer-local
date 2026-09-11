@@ -64,7 +64,7 @@ class IFBWasherClient:
         host: str,
         port: int = DEFAULT_PORT,
         session: Optional[aiohttp.ClientSession] = None,
-        timeout: float = 5.0,
+        timeout: float = 8.0,
         program_map: Optional[dict[int, str]] = None,
     ) -> None:
         """Initialize the client."""
@@ -89,25 +89,45 @@ class IFBWasherClient:
             session = await self._get_session()
             timestamp = int(time.time() * 1000)
             url = f"http://{self.host}:{self.port}{GAINSPAN_PROFILE_ENDPOINT}?t={timestamp}"
-            headers = {"Content-Type": "multipart/form-data"}
+            headers = {
+                "Content-Type": "multipart/form-data",
+                "Connection": "close",
+            }
 
             _LOGGER.debug("Sending raw command to %s: %s", self.host, payload.hex())
-            try:
-                async with session.post(
-                    url,
-                    data=payload,
-                    headers=headers,
-                    timeout=aiohttp.ClientTimeout(total=self._timeout),
-                ) as response:
-                    if response.status != 200:
-                        raise IFBConnectionError(f"HTTP request returned status {response.status}")
-                    data = await response.read()
-                    _LOGGER.debug("Received raw response from %s (%d bytes): %s", self.host, len(data), data.hex())
-                    return data
-            except asyncio.TimeoutError as err:
-                raise IFBTimeoutError(f"Timed out communicating with washer at {self.host}") from err
-            except aiohttp.ClientError as err:
-                raise IFBConnectionError(f"Network error connecting to washer at {self.host}: {err}") from err
+            last_error: Exception | None = None
+            for attempt in range(2):
+                try:
+                    async with session.post(
+                        url,
+                        data=payload,
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=self._timeout),
+                    ) as response:
+                        if response.status != 200:
+                            raise IFBConnectionError(f"HTTP request returned status {response.status}")
+                        data = await response.read()
+                        _LOGGER.debug("Received raw response from %s (%d bytes): %s", self.host, len(data), data.hex())
+                        return data
+                except (asyncio.TimeoutError, aiohttp.ClientError) as err:
+                    last_error = err
+                    if attempt == 0:
+                        _LOGGER.debug(
+                            "Transient communication error on attempt 1 with %s, retrying after 500ms: %s",
+                            self.host,
+                            err,
+                        )
+                        await asyncio.sleep(0.5)
+                        continue
+                    if isinstance(err, asyncio.TimeoutError):
+                        raise IFBTimeoutError(f"Timed out communicating with washer at {self.host}") from err
+                    raise IFBConnectionError(f"Network error connecting to washer at {self.host}: {err}") from err
+
+            if last_error:
+                if isinstance(last_error, asyncio.TimeoutError):
+                    raise IFBTimeoutError(f"Timed out communicating with washer at {self.host}") from last_error
+                raise IFBConnectionError(f"Network error connecting to washer at {self.host}: {last_error}") from last_error
+            raise IFBConnectionError(f"Failed communicating with washer at {self.host}")
 
     async def get_state(self) -> WasherState:
         """Query the washer and return the current state."""
