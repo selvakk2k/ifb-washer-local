@@ -18,7 +18,7 @@ except ImportError:
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
 from homeassistant.core import callback
-from homeassistant.helpers import selector
+from homeassistant.helpers import device_registry as dr, selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 import json
@@ -682,18 +682,78 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             data=data,
         )
 
+    async def _async_apply_dhcp_update(
+        self,
+        entry: ConfigEntry,
+        new_ip: str,
+        mac: str,
+    ) -> ConfigFlowResult:
+        """Apply an IP and/or MAC update to a matched config entry and migrate device registry."""
+        existing_host = entry.data.get(CONF_HOST, "")
+        normalized_mac = _normalize_mac(mac)
+        new_data = dict(entry.data)
+        new_data[CONF_MAC_ADDRESS] = mac
+        changed_host = existing_host != new_ip
+
+        if changed_host:
+            _LOGGER.info(
+                "DHCP: IFB washer MAC %s changed IP %s -> %s — updating config entry",
+                mac,
+                existing_host,
+                new_ip,
+            )
+            new_data[CONF_HOST] = new_ip
+
+        update_kwargs: dict[str, Any] = {"data": new_data}
+        if not entry.unique_id or entry.unique_id == existing_host:
+            update_kwargs["unique_id"] = normalized_mac
+
+        self.hass.config_entries.async_update_entry(entry, **update_kwargs)
+
+        # Migrate device registry identifiers and connections so no duplicate device is created
+        try:
+            device_registry = dr.async_get(self.hass)
+            device_entry = device_registry.async_get_device(
+                identifiers={(DOMAIN, existing_host)}
+            )
+            if not device_entry and entry.unique_id:
+                device_entry = device_registry.async_get_device(
+                    identifiers={(DOMAIN, entry.unique_id)}
+                )
+            if device_entry:
+                device_registry.async_update_device(
+                    device_entry.id,
+                    new_identifiers={(DOMAIN, mac.lower())},
+                    merge_connections={(dr.CONNECTION_NETWORK_MAC, mac.lower())},
+                )
+        except Exception:
+            _LOGGER.debug("Device registry not ready or unavailable during DHCP update")
+
+        # Update the running coordinator's client host in-place
+        coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+        if coordinator is not None:
+            coordinator.client.host = new_ip
+            if changed_host:
+                _LOGGER.info(
+                    "DHCP: Coordinator client host updated to %s — requesting refresh",
+                    new_ip,
+                )
+                self.hass.async_create_task(coordinator.async_request_refresh())
+
+        return self.async_abort(reason="already_configured")
+
     async def async_step_dhcp(
         self, discovery_info: DhcpServiceInfo
     ) -> ConfigFlowResult:
         """Handle DHCP discovery.
 
-        When HA sees a DHCP lease whose MAC matches the GainSpan OUI (20:F8:5E),
-        this handler fires. If an existing entry has a matching MAC address stored,
-        the host IP is updated in-place on both the config entry and the running
-        coordinator so the integration reconnects without a full reload.
+        Tier 1 — fast path: match by stored MAC address or same IP.
+        Tier 2 — fallback probe: test candidate IP with the GainSpan protocol.
+        Used for entries configured before MAC storage was added or where ARP failed.
+        The MAC is permanently bound on match so subsequent reboots hit Tier 1.
         """
-        discovered_ip = discovery_info.ip
-        discovered_mac = discovery_info.macaddress.lower()
+        discovered_ip = getattr(discovery_info, "ip", "")
+        discovered_mac = getattr(discovery_info, "macaddress", "").lower()
 
         _LOGGER.debug(
             "DHCP discovery: IFB washer candidate at %s (MAC %s)",
@@ -701,48 +761,65 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             discovered_mac,
         )
 
-        # Try to match against an existing configured entry by stored MAC address
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            stored_mac = entry.data.get(CONF_MAC_ADDRESS, "").lower()
-            if not stored_mac:
-                continue
-            if _normalize_mac(stored_mac) == _normalize_mac(discovered_mac):
-                existing_host = entry.data.get(CONF_HOST, "")
-                if existing_host == discovered_ip:
-                    _LOGGER.debug(
-                        "DHCP: IFB washer at %s is already configured with correct IP — no update needed",
-                        discovered_ip,
-                    )
-                    return self.async_abort(reason="already_configured")
+        entries = self.hass.config_entries.async_entries(DOMAIN)
 
+        # Tier 1A: match by stored MAC address
+        for entry in entries:
+            stored_mac = entry.data.get(CONF_MAC_ADDRESS, "").lower()
+            if stored_mac and _normalize_mac(stored_mac) == _normalize_mac(discovered_mac):
+                return await self._async_apply_dhcp_update(entry, discovered_ip, discovered_mac)
+
+        # Tier 1B: same-IP MAC adoption (prime the entry with MAC before an IP change occurs)
+        for entry in entries:
+            existing_host = entry.data.get(CONF_HOST, "")
+            if existing_host and existing_host == discovered_ip:
                 _LOGGER.info(
-                    "DHCP: IFB washer MAC %s changed IP %s -> %s — updating config entry",
-                    stored_mac,
-                    existing_host,
+                    "DHCP: Learned MAC %s for configured IFB washer at %s",
+                    discovered_mac,
                     discovered_ip,
                 )
-                # Update the stored host in the config entry
-                new_data = dict(entry.data)
-                new_data[CONF_HOST] = discovered_ip
-                self.hass.config_entries.async_update_entry(entry, data=new_data)
+                return await self._async_apply_dhcp_update(entry, discovered_ip, discovered_mac)
 
-                # Update the running coordinator's client host in-place
-                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
-                if coordinator is not None:
-                    coordinator.client.host = discovered_ip
+        # Tier 2: no MAC matched — probe candidate IP with GainSpan protocol
+        candidate_entries = [
+            e for e in entries
+            if not e.data.get(CONF_MAC_ADDRESS) or e.data.get(CONF_HOST) != discovered_ip
+        ]
+        if candidate_entries:
+            session = async_get_clientsession(self.hass)
+            client = IFBWasherClient(
+                host=discovered_ip, port=DEFAULT_PORT, session=session, timeout=5.0
+            )
+            try:
+                await client.get_state()
+            except Exception:
+                _LOGGER.debug(
+                    "DHCP: Connectivity probe to %s failed",
+                    discovered_ip,
+                )
+            else:
+                if len(candidate_entries) == 1:
                     _LOGGER.info(
-                        "DHCP: Coordinator client host updated to %s — requesting refresh",
+                        "DHCP: IFB washer confirmed at new IP %s (MAC %s) via connectivity probe"
+                        " — updating entry and storing MAC for future reboots",
                         discovered_ip,
+                        discovered_mac,
                     )
-                    self.hass.async_create_task(coordinator.async_request_refresh())
+                    return await self._async_apply_dhcp_update(
+                        candidate_entries[0], discovered_ip, discovered_mac
+                    )
+                _LOGGER.warning(
+                    "DHCP: IFB washer at %s confirmed but %d candidate entries exist"
+                    " — cannot determine which entry to update automatically",
+                    discovered_ip,
+                    len(candidate_entries),
+                )
 
-                return self.async_abort(reason="already_configured")
-
-        # No matching entry: start a fresh setup flow pre-populated with the discovered IP
+        # Unknown device or ambiguous: proceed to user setup pre-populated
         self._host = discovered_ip
         self._mac_address = discovered_mac
-        await self.async_set_unique_id(discovered_ip, raise_on_progress=False)
-        self._abort_if_unique_id_configured()
+        await self.async_set_unique_id(_normalize_mac(discovered_mac), raise_on_progress=False)
+        self._abort_if_unique_id_configured(updates={CONF_HOST: discovered_ip})
         return await self.async_step_user()
 
     @staticmethod
@@ -781,6 +858,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
 
         current_name = entry.data.get(CONF_NAME, "")
+        current_mac = entry.data.get(CONF_MAC_ADDRESS, "")
         current_model = entry.options.get(
             CONF_MODEL,
             entry.data.get(CONF_MODEL, "WD Executive ZXS"),
@@ -795,6 +873,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             new_name = user_input.get(CONF_NAME, "").strip() or None
             new_model = user_input.get(CONF_MODEL, current_model).strip()
+            new_mac = user_input.get(CONF_MAC_ADDRESS, "").strip()
 
             # Update entry data with new name and model if changed
             new_data = dict(entry.data)
@@ -804,11 +883,39 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             else:
                 new_data.pop(CONF_NAME, None)
 
+            update_kwargs: dict[str, Any] = {}
+            if new_mac:
+                new_data[CONF_MAC_ADDRESS] = new_mac
+                normalized_mac = _normalize_mac(new_mac)
+                if not entry.unique_id or entry.unique_id == entry.data.get(CONF_HOST):
+                    update_kwargs["unique_id"] = normalized_mac
+
+                # Migrate device registry
+                try:
+                    device_registry = dr.async_get(self.hass)
+                    existing_host = entry.data.get(CONF_HOST, "")
+                    device_entry = device_registry.async_get_device(
+                        identifiers={(DOMAIN, existing_host)}
+                    )
+                    if not device_entry and entry.unique_id:
+                        device_entry = device_registry.async_get_device(
+                            identifiers={(DOMAIN, entry.unique_id)}
+                        )
+                    if device_entry:
+                        device_registry.async_update_device(
+                            device_entry.id,
+                            new_identifiers={(DOMAIN, new_mac.lower())},
+                            merge_connections={(dr.CONNECTION_NETWORK_MAC, new_mac.lower())},
+                        )
+                except Exception:
+                    _LOGGER.debug("Device registry not ready or unavailable during options update")
+
             new_title = new_name or f"IFB {new_model} ({entry.data.get(CONF_HOST)})"
             self.hass.config_entries.async_update_entry(
                 entry,
                 title=new_title,
                 data=new_data,
+                **update_kwargs,
             )
 
             self._options_data = {
@@ -846,6 +953,11 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             {
                 vol.Optional(
                     CONF_NAME, default=current_name
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+                ),
+                vol.Optional(
+                    CONF_MAC_ADDRESS, default=current_mac
                 ): selector.TextSelector(
                     selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                 ),

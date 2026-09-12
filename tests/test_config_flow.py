@@ -572,5 +572,177 @@ async def test_setup_entry_prewarms_models_lookup(mock_hass):
         mock_hass.async_add_executor_job.assert_called()
 
 
+@pytest.mark.asyncio
+async def test_dhcp_discovery_stored_mac_match(mock_hass):
+    """Test DHCP discovery matching by stored MAC address updates host and coordinator."""
+    from dataclasses import dataclass
+    from custom_components.ifb_washer_local.const import CONF_MAC_ADDRESS, DOMAIN
+
+    @dataclass
+    class FakeDhcpServiceInfo:
+        ip: str
+        macaddress: str
+        hostname: str = ""
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_123"
+    mock_entry.unique_id = "20f85e5d590b"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_MAC_ADDRESS: "20:f8:5e:5d:59:0b",
+    }
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.client = MagicMock()
+    mock_coordinator.client.host = "192.168.0.100"
+    mock_coordinator.async_request_refresh = AsyncMock()
+
+    mock_hass.data = {DOMAIN: {"test_entry_123": mock_coordinator}}
+    mock_hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+
+    discovery_info = FakeDhcpServiceInfo(ip="192.168.0.105", macaddress="20:f8:5e:5d:59:0b")
+    result = await flow.async_step_dhcp(discovery_info)
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert mock_coordinator.client.host == "192.168.0.105"
+    mock_hass.config_entries.async_update_entry.assert_called_once()
+    updated_data = mock_hass.config_entries.async_update_entry.call_args[1]["data"]
+    assert updated_data[CONF_HOST] == "192.168.0.105"
+    assert updated_data[CONF_MAC_ADDRESS] == "20:f8:5e:5d:59:0b"
+
+
+@pytest.mark.asyncio
+async def test_dhcp_discovery_same_ip_mac_adoption(mock_hass):
+    """Test DHCP discovery adopting MAC address when IP matches existing configured entry."""
+    from dataclasses import dataclass
+    from custom_components.ifb_washer_local.const import CONF_MAC_ADDRESS, DOMAIN
+
+    @dataclass
+    class FakeDhcpServiceInfo:
+        ip: str
+        macaddress: str
+        hostname: str = ""
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_same_ip"
+    mock_entry.unique_id = "192.168.0.100"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+    }
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.client = MagicMock()
+    mock_coordinator.client.host = "192.168.0.100"
+    mock_coordinator.async_request_refresh = AsyncMock()
+
+    mock_hass.data = {DOMAIN: {"test_entry_same_ip": mock_coordinator}}
+    mock_hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+
+    discovery_info = FakeDhcpServiceInfo(ip="192.168.0.100", macaddress="20:f8:5e:5d:59:0b")
+    result = await flow.async_step_dhcp(discovery_info)
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    mock_hass.config_entries.async_update_entry.assert_called_once()
+    call_kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+    assert call_kwargs["data"][CONF_MAC_ADDRESS] == "20:f8:5e:5d:59:0b"
+    assert call_kwargs["unique_id"] == "20f85e5d590b"
+
+
+@pytest.mark.asyncio
+async def test_dhcp_discovery_probe_fallback(mock_hass):
+    """Test DHCP discovery fallback probing new IP when entry has no stored MAC."""
+    from dataclasses import dataclass
+    from custom_components.ifb_washer_local.const import CONF_MAC_ADDRESS, DOMAIN
+
+    @dataclass
+    class FakeDhcpServiceInfo:
+        ip: str
+        macaddress: str
+        hostname: str = ""
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_probe"
+    mock_entry.unique_id = "192.168.0.100"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+    }
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.client = MagicMock()
+    mock_coordinator.client.host = "192.168.0.100"
+    mock_coordinator.async_request_refresh = AsyncMock()
+
+    mock_hass.data = {DOMAIN: {"test_entry_probe": mock_coordinator}}
+    mock_hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+
+    mock_state = MagicMock(spec=WasherState)
+    mock_state.program_code = 13
+
+    with patch(
+        "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+        new_callable=AsyncMock,
+        return_value=mock_state,
+    ):
+        discovery_info = FakeDhcpServiceInfo(ip="192.168.0.105", macaddress="20:f8:5e:5d:59:0b")
+        result = await flow.async_step_dhcp(discovery_info)
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert mock_coordinator.client.host == "192.168.0.105"
+    mock_hass.config_entries.async_update_entry.assert_called_once()
+    call_kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+    assert call_kwargs["data"][CONF_HOST] == "192.168.0.105"
+    assert call_kwargs["data"][CONF_MAC_ADDRESS] == "20:f8:5e:5d:59:0b"
+    assert call_kwargs["unique_id"] == "20f85e5d590b"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_set_mac_address(mock_hass):
+    """Test setting MAC address manually via options flow."""
+    from custom_components.ifb_washer_local.const import CONF_MAC_ADDRESS
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_opts_mac"
+    mock_entry.unique_id = "192.168.0.100"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+    mock_entry.options = {}
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    result = await options_flow.async_step_init({
+        CONF_MODEL: "WD Executive ZXS",
+        CONF_MAC_ADDRESS: "20:f8:5e:5d:59:0b",
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        "calibration_action": "none",
+    })
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    mock_hass.config_entries.async_update_entry.assert_called_once()
+    call_kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+    assert call_kwargs["data"][CONF_MAC_ADDRESS] == "20:f8:5e:5d:59:0b"
+    assert call_kwargs["unique_id"] == "20f85e5d590b"
+
+
+
 
 

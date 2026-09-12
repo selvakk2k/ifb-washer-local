@@ -10,7 +10,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -220,16 +220,19 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         stable device identifier so that the device survives an IP address
         change without creating a duplicate entry in the device registry.
         """
+        connections: set[tuple[str, str]] = set()
         if self.entry:
             mac = self.entry.data.get(CONF_MAC_ADDRESS)
             if mac:
                 identifier = mac.lower()
+                connections.add((CONNECTION_NETWORK_MAC, mac.lower()))
             else:
                 identifier = self.client.host
         else:
             identifier = self.client.host
         return DeviceInfo(
             identifiers={(DOMAIN, identifier)},
+            connections=connections,
             name=self.device_name,
             manufacturer="IFB Industries",
             model=self.model_name,

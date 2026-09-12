@@ -102,12 +102,16 @@
         "title": "IFB Washer Local Options",
         "description": "Adjust operational scan intervals and model settings:",
         "data": {
+          "name": "Custom Friendly Name",
+          "mac_address": "MAC Address (Optional)",
           "model": "Appliance Model Name",
           "scan_interval_standby": "Standby Polling Interval",
           "scan_interval_running": "Active Wash Polling Interval",
           "calibration_action": "Hardware Capability Calibration"
         },
         "data_description": {
+          "name": "Custom display name for the device in Home Assistant (leave blank to use default model name).",
+          "mac_address": "Hardware MAC address of the washer's Wi-Fi module (e.g. 20:F8:5E:xx:xx:xx) used for dynamic IP DHCP tracking.",
           "model": "Display model name shown in Home Assistant device registry.",
           "scan_interval_standby": "Polling interval in seconds while the washer is idle or in standby (default: 15s).",
           "scan_interval_running": "Polling interval in seconds while an active wash cycle is running (default: 5s).",
