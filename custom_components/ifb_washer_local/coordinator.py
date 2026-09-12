@@ -75,6 +75,7 @@ from .const import (
     CONF_CUSTOM_MODEL,
     CONF_CUSTOM_PROGRAMS,
     CONF_FAMILY,
+    CONF_MAC_ADDRESS,
     CONF_MODEL,
     CONF_SCAN_INTERVAL_RUNNING,
     CONF_SCAN_INTERVAL_STANDBY,
@@ -213,9 +214,22 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
     @property
     def device_info(self) -> DeviceInfo:
-        """Return standardized device registry information."""
+        """Return standardized device registry information.
+
+        When a MAC address is stored in the config entry it is used as the
+        stable device identifier so that the device survives an IP address
+        change without creating a duplicate entry in the device registry.
+        """
+        if self.entry:
+            mac = self.entry.data.get(CONF_MAC_ADDRESS)
+            if mac:
+                identifier = mac.lower()
+            else:
+                identifier = self.client.host
+        else:
+            identifier = self.client.host
         return DeviceInfo(
-            identifiers={(DOMAIN, self.client.host)},
+            identifiers={(DOMAIN, identifier)},
             name=self.device_name,
             manufacturer="IFB Industries",
             model=self.model_name,

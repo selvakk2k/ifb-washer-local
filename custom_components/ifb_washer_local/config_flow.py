@@ -8,6 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components.dhcp import DhcpServiceInfo
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
 from homeassistant.core import callback
@@ -79,17 +80,47 @@ from .const import (
     CONF_CALIBRATED_PROFILE,
     CONF_CUSTOM_MODEL,
     CONF_FAMILY,
+    CONF_MAC_ADDRESS,
     CONF_MODEL,
     CONF_SCAN_INTERVAL_RUNNING,
     CONF_SCAN_INTERVAL_STANDBY,
     DEFAULT_FAMILY,
-
     DEFAULT_SCAN_INTERVAL_RUNNING,
     DEFAULT_SCAN_INTERVAL_STANDBY,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _normalize_mac(mac: str) -> str:
+    """Return a MAC address as a lowercase 12-character hex string with no separators."""
+    return mac.lower().replace(":", "").replace("-", "")
+
+
+async def _async_get_mac_from_arp(hass: Any, ip: str) -> str:
+    """Look up a device's MAC address from the Linux ARP table for a given IP.
+
+    Reads /proc/net/arp which is always present on Linux (HA OS / Container).
+    Returns an empty string if the IP is not found or the entry is incomplete.
+    """
+    def _read_arp() -> str:
+        try:
+            with open("/proc/net/arp", encoding="utf-8") as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 4 and parts[0] == ip:
+                        mac = parts[3]
+                        if mac not in ("00:00:00:00:00:00", ""):
+                            return mac.lower()
+        except Exception:
+            pass
+        return ""
+
+    try:
+        return await hass.async_add_executor_job(_read_arp)
+    except Exception:
+        return ""
 
 MACHINE_TYPE_OPTIONS = [
     selector.SelectOptionDict(
@@ -173,6 +204,7 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._phase1_code: int = 12
         self._phase1_side: str = "left"
         self._calibrated_profile: dict[str, Any] | None = None
+        self._mac_address: str = ""
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -207,6 +239,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._port = port
                 self._client = client
                 self._initial_state = state
+                # Try to discover the device MAC from the system ARP table
+                self._mac_address = await _async_get_mac_from_arp(self.hass, host)
                 return await self.async_step_machine_type()
 
         schema = vol.Schema(
@@ -632,6 +666,8 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         }
         if self._name:
             data[CONF_NAME] = self._name
+        if self._mac_address:
+            data[CONF_MAC_ADDRESS] = self._mac_address
         if self._calibrated_profile:
             data[CONF_CALIBRATED_PROFILE] = self._calibrated_profile
 
@@ -639,6 +675,69 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
             title=title,
             data=data,
         )
+
+    async def async_step_dhcp(
+        self, discovery_info: DhcpServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle DHCP discovery.
+
+        When HA sees a DHCP lease whose MAC matches the GainSpan OUI (20:F8:5E),
+        this handler fires. If an existing entry has a matching MAC address stored,
+        the host IP is updated in-place on both the config entry and the running
+        coordinator so the integration reconnects without a full reload.
+        """
+        discovered_ip = discovery_info.ip
+        discovered_mac = discovery_info.macaddress.lower()
+
+        _LOGGER.debug(
+            "DHCP discovery: IFB washer candidate at %s (MAC %s)",
+            discovered_ip,
+            discovered_mac,
+        )
+
+        # Try to match against an existing configured entry by stored MAC address
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            stored_mac = entry.data.get(CONF_MAC_ADDRESS, "").lower()
+            if not stored_mac:
+                continue
+            if _normalize_mac(stored_mac) == _normalize_mac(discovered_mac):
+                existing_host = entry.data.get(CONF_HOST, "")
+                if existing_host == discovered_ip:
+                    _LOGGER.debug(
+                        "DHCP: IFB washer at %s is already configured with correct IP — no update needed",
+                        discovered_ip,
+                    )
+                    return self.async_abort(reason="already_configured")
+
+                _LOGGER.info(
+                    "DHCP: IFB washer MAC %s changed IP %s -> %s — updating config entry",
+                    stored_mac,
+                    existing_host,
+                    discovered_ip,
+                )
+                # Update the stored host in the config entry
+                new_data = dict(entry.data)
+                new_data[CONF_HOST] = discovered_ip
+                self.hass.config_entries.async_update_entry(entry, data=new_data)
+
+                # Update the running coordinator's client host in-place
+                coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
+                if coordinator is not None:
+                    coordinator.client.host = discovered_ip
+                    _LOGGER.info(
+                        "DHCP: Coordinator client host updated to %s — requesting refresh",
+                        discovered_ip,
+                    )
+                    self.hass.async_create_task(coordinator.async_request_refresh())
+
+                return self.async_abort(reason="already_configured")
+
+        # No matching entry: start a fresh setup flow pre-populated with the discovered IP
+        self._host = discovered_ip
+        self._mac_address = discovered_mac
+        await self.async_set_unique_id(discovered_ip, raise_on_progress=False)
+        self._abort_if_unique_id_configured()
+        return await self.async_step_user()
 
     @staticmethod
     @callback

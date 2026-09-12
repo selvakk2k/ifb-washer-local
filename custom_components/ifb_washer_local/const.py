@@ -17,6 +17,7 @@ CONF_MODEL = "model"
 CONF_CUSTOM_MODEL = "custom_model"
 CONF_CUSTOM_PROGRAMS = "custom_programs"
 CONF_CALIBRATED_PROFILE = "calibrated_profile"
+CONF_MAC_ADDRESS = "mac_address"
 
 
 DEFAULT_PORT = 80
