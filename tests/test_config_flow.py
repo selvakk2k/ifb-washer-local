@@ -743,6 +743,83 @@ async def test_options_flow_set_mac_address(mock_hass):
     assert call_kwargs["unique_id"] == "20f85e5d590b"
 
 
+@pytest.mark.asyncio
+async def test_reconfigure_flow(mock_hass):
+    """Test reconfiguring washer host IP."""
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_reconf"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+    }
+    mock_hass.config_entries.async_get_entry = MagicMock(return_value=mock_entry)
+    mock_hass.config_entries.async_entries = MagicMock(return_value=[mock_entry])
+
+    flow = IFBWasherConfigFlow()
+    flow.hass = mock_hass
+    flow.context = {"entry_id": "test_entry_reconf"}
+
+    # Initial form
+    form_result = await flow.async_step_reconfigure()
+    assert form_result["type"] == FlowResultType.FORM
+    assert form_result["step_id"] == "reconfigure"
+
+    # Submit new host
+    with patch(
+        "custom_components.ifb_washer_local.config_flow.IFBWasherClient.get_state",
+        new_callable=AsyncMock,
+        side_effect=Exception("Unreachable in standby"),
+    ):
+        result = await flow.async_step_reconfigure({
+            CONF_HOST: "192.168.0.160",
+            CONF_PORT: 80,
+        })
+
+    assert result["type"] == FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_update_host(mock_hass):
+    """Test manually updating host IP in options flow."""
+    from custom_components.ifb_washer_local.const import DOMAIN
+
+    mock_entry = MagicMock()
+    mock_entry.entry_id = "test_entry_opts_host"
+    mock_entry.unique_id = "20f85e5d590b"
+    mock_entry.data = {
+        CONF_HOST: "192.168.0.100",
+        CONF_PORT: 80,
+        CONF_MODEL: "WD Executive ZXS",
+    }
+    mock_entry.options = {}
+
+    mock_coordinator = MagicMock()
+    mock_coordinator.client = MagicMock()
+    mock_coordinator.client.host = "192.168.0.100"
+    mock_coordinator.async_request_refresh = AsyncMock()
+    mock_hass.data = {DOMAIN: {"test_entry_opts_host": mock_coordinator}}
+
+    options_flow = IFBWasherConfigFlow.async_get_options_flow(mock_entry)
+    options_flow.hass = mock_hass
+
+    result = await options_flow.async_step_init({
+        CONF_HOST: "192.168.0.160",
+        CONF_MODEL: "WD Executive ZXS",
+        "scan_interval_standby": 15,
+        "scan_interval_running": 5,
+        "calibration_action": "none",
+    })
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    mock_hass.config_entries.async_update_entry.assert_called_once()
+    call_kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+    assert call_kwargs["data"][CONF_HOST] == "192.168.0.160"
+    assert mock_coordinator.client.host == "192.168.0.160"
+    mock_coordinator.async_request_refresh.assert_called_once()
+
+
+
 
 
 

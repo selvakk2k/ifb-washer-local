@@ -82,6 +82,18 @@
       "custom": {
         "title": "Custom Configuration",
         "description": "Your IFB washing machine will be configured in manual mode."
+      },
+      "reconfigure": {
+        "title": "Reconfigure IFB Washer",
+        "description": "Update connection settings for your IFB washing machine.",
+        "data": {
+          "host": "IP Address",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Local IP address of the washing machine on your home network.",
+          "port": "Local HTTP port used by the GainSpan module (default: 80)."
+        }
       }
     },
     "progress": {
@@ -93,7 +105,8 @@
       "unknown": "Unexpected error occurred during connection test."
     },
     "abort": {
-      "already_configured": "This IFB washing machine is already configured in Home Assistant."
+      "already_configured": "This IFB washing machine is already configured in Home Assistant.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "options": {
@@ -102,6 +115,7 @@
         "title": "IFB Washer Local Options",
         "description": "Adjust operational scan intervals and model settings:",
         "data": {
+          "host": "IP Address",
           "name": "Custom Friendly Name",
           "mac_address": "MAC Address (Optional)",
           "model": "Appliance Model Name",
@@ -110,6 +124,7 @@
           "calibration_action": "Hardware Capability Calibration"
         },
         "data_description": {
+          "host": "Local IP address of the washing machine on your home Wi-Fi network.",
           "name": "Custom display name for the device in Home Assistant (leave blank to use default model name).",
           "mac_address": "Hardware MAC address of the washer's Wi-Fi module (e.g. 20:F8:5E:xx:xx:xx) used for dynamic IP DHCP tracking.",
           "model": "Display model name shown in Home Assistant device registry.",

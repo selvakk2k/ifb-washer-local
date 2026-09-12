@@ -713,18 +713,22 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         # Migrate device registry identifiers and connections so no duplicate device is created
         try:
             device_registry = dr.async_get(self.hass)
-            device_entry = device_registry.async_get_device(
-                identifiers={(DOMAIN, existing_host)}
-            )
-            if not device_entry and entry.unique_id:
-                device_entry = device_registry.async_get_device(
-                    identifiers={(DOMAIN, entry.unique_id)}
-                )
+            device_entry = None
+            if hasattr(device_registry, "async_get_device_by_identifier"):
+                device_entry = device_registry.async_get_device_by_identifier(DOMAIN, existing_host)
+                if not device_entry and entry.unique_id:
+                    device_entry = device_registry.async_get_device_by_identifier(DOMAIN, entry.unique_id)
+            else:
+                device_entry = device_registry.async_get_device(identifiers={(DOMAIN, existing_host)})
+                if not device_entry and entry.unique_id:
+                    device_entry = device_registry.async_get_device(identifiers={(DOMAIN, entry.unique_id)})
+
             if device_entry:
+                new_connections = set(device_entry.connections) | {(dr.CONNECTION_NETWORK_MAC, mac.lower())}
                 device_registry.async_update_device(
                     device_entry.id,
                     new_identifiers={(DOMAIN, mac.lower())},
-                    merge_connections={(dr.CONNECTION_NETWORK_MAC, mac.lower())},
+                    new_connections=new_connections,
                 )
         except Exception:
             _LOGGER.debug("Device registry not ready or unavailable during DHCP update")
@@ -822,6 +826,71 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
         self._abort_if_unique_id_configured(updates={CONF_HOST: discovered_ip})
         return await self.async_step_user()
 
+    def _get_reconfigure_entry(self) -> ConfigEntry:
+        """Get the config entry to reconfigure."""
+        if hasattr(super(), "_get_reconfigure_entry"):
+            try:
+                return super()._get_reconfigure_entry()
+            except Exception:
+                pass
+        entry_id = getattr(self, "context", {}).get("entry_id")
+        if entry_id:
+            entry = self.hass.config_entries.async_get_entry(entry_id)
+            if entry:
+                return entry
+        entries = self.hass.config_entries.async_entries(DOMAIN)
+        if entries:
+            return entries[0]
+        raise RuntimeError("No entry found to reconfigure")
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reconfiguring the washer's host IP and port."""
+        errors: dict[str, str] = {}
+        entry = self._get_reconfigure_entry()
+        current_host = entry.data.get(CONF_HOST, "")
+        current_port = entry.data.get(CONF_PORT, DEFAULT_PORT)
+
+        if user_input is not None:
+            new_host = user_input[CONF_HOST].strip()
+            new_port = int(user_input.get(CONF_PORT, current_port))
+
+            # Test connection if washer is online
+            session = async_get_clientsession(self.hass)
+            client = IFBWasherClient(host=new_host, port=new_port, session=session, timeout=5.0)
+            try:
+                await client.get_state()
+            except Exception:
+                _LOGGER.warning(
+                    "Washer at %s did not respond to status check during reconfiguration (machine display may be off). Updating host anyway.",
+                    new_host,
+                )
+
+            new_data = dict(entry.data)
+            new_data[CONF_HOST] = new_host
+            new_data[CONF_PORT] = new_port
+            self.hass.config_entries.async_update_entry(entry, data=new_data)
+            self.hass.async_create_task(self.hass.config_entries.async_reload(entry.entry_id))
+            return self.async_abort(reason="reconfigure_successful")
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST, default=current_host): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+                    ),
+                    vol.Optional(CONF_PORT, default=current_port): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1, max=65535, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(
@@ -858,6 +927,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
         coordinator = self.hass.data.get(DOMAIN, {}).get(entry.entry_id)
 
         current_name = entry.data.get(CONF_NAME, "")
+        current_host = entry.data.get(CONF_HOST, "")
         current_mac = entry.data.get(CONF_MAC_ADDRESS, "")
         current_model = entry.options.get(
             CONF_MODEL,
@@ -872,6 +942,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
         if user_input is not None:
             new_name = user_input.get(CONF_NAME, "").strip() or None
+            new_host = user_input.get(CONF_HOST, current_host).strip()
             new_model = user_input.get(CONF_MODEL, current_model).strip()
             new_mac = user_input.get(CONF_MAC_ADDRESS, "").strip()
 
@@ -883,40 +954,58 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
             else:
                 new_data.pop(CONF_NAME, None)
 
+            changed_host = False
+            if new_host and new_host != current_host:
+                new_data[CONF_HOST] = new_host
+                changed_host = True
+                _LOGGER.info(
+                    "Options: IFB washer host updated manually %s -> %s",
+                    current_host,
+                    new_host,
+                )
+
             update_kwargs: dict[str, Any] = {}
             if new_mac:
                 new_data[CONF_MAC_ADDRESS] = new_mac
                 normalized_mac = _normalize_mac(new_mac)
-                if not entry.unique_id or entry.unique_id == entry.data.get(CONF_HOST):
+                if not entry.unique_id or entry.unique_id == current_host:
                     update_kwargs["unique_id"] = normalized_mac
 
                 # Migrate device registry
                 try:
                     device_registry = dr.async_get(self.hass)
                     existing_host = entry.data.get(CONF_HOST, "")
-                    device_entry = device_registry.async_get_device(
-                        identifiers={(DOMAIN, existing_host)}
-                    )
-                    if not device_entry and entry.unique_id:
-                        device_entry = device_registry.async_get_device(
-                            identifiers={(DOMAIN, entry.unique_id)}
-                        )
+                    device_entry = None
+                    if hasattr(device_registry, "async_get_device_by_identifier"):
+                        device_entry = device_registry.async_get_device_by_identifier(DOMAIN, existing_host)
+                        if not device_entry and entry.unique_id:
+                            device_entry = device_registry.async_get_device_by_identifier(DOMAIN, entry.unique_id)
+                    else:
+                        device_entry = device_registry.async_get_device(identifiers={(DOMAIN, existing_host)})
+                        if not device_entry and entry.unique_id:
+                            device_entry = device_registry.async_get_device(identifiers={(DOMAIN, entry.unique_id)})
+
                     if device_entry:
+                        new_connections = set(device_entry.connections) | {(dr.CONNECTION_NETWORK_MAC, new_mac.lower())}
                         device_registry.async_update_device(
                             device_entry.id,
                             new_identifiers={(DOMAIN, new_mac.lower())},
-                            merge_connections={(dr.CONNECTION_NETWORK_MAC, new_mac.lower())},
+                            new_connections=new_connections,
                         )
                 except Exception:
                     _LOGGER.debug("Device registry not ready or unavailable during options update")
 
-            new_title = new_name or f"IFB {new_model} ({entry.data.get(CONF_HOST)})"
+            new_title = new_name or f"IFB {new_model} ({new_host})"
             self.hass.config_entries.async_update_entry(
                 entry,
                 title=new_title,
                 data=new_data,
                 **update_kwargs,
             )
+
+            if changed_host and coordinator:
+                coordinator.client.host = new_host
+                self.hass.async_create_task(coordinator.async_request_refresh())
 
             self._options_data = {
                 CONF_MODEL: new_model,
@@ -951,6 +1040,11 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
 
         schema = vol.Schema(
             {
+                vol.Required(
+                    CONF_HOST, default=current_host
+                ): selector.TextSelector(
+                    selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+                ),
                 vol.Optional(
                     CONF_NAME, default=current_name
                 ): selector.TextSelector(
