@@ -96,7 +96,7 @@ class IFBWasherProgramSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
             translation_key="program_select",
             icon="mdi:format-list-checks",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_program_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_program_select"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -140,7 +140,7 @@ class IFBWasherSpinSpeedSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEn
             translation_key="spin_speed_select",
             icon="mdi:speedometer",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_spin_speed_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_spin_speed_select"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -223,7 +223,7 @@ class IFBWasherTemperatureSelect(CoordinatorEntity[IFBWasherCoordinator], Select
             translation_key="temperature_select",
             icon="mdi:thermometer-chevron-up",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_temperature_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_temperature_select"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -281,7 +281,7 @@ class IFBWasherDelayStartSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
             translation_key="delay_start_select",
             icon="mdi:timer-outline",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_delay_start_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_delay_start_select"
         self._attr_device_info = coordinator.device_info
         self._attr_options = list(DELAY_START_OPTIONS.values())
 
@@ -328,7 +328,7 @@ class IFBWasherExtraRinseSelect(CoordinatorEntity[IFBWasherCoordinator], SelectE
             translation_key="extra_rinse_select",
             icon="mdi:water-plus",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_extra_rinse_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_extra_rinse_select"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -383,7 +383,7 @@ class IFBWasherDryModeSelect(CoordinatorEntity[IFBWasherCoordinator], SelectEnti
             translation_key="dry_mode_select",
             icon="mdi:tumble-dryer",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_dry_mode_select"
+        self._attr_unique_id = f"{coordinator.unique_id}_dry_mode_select"
         self._attr_device_info = coordinator.device_info
         self._attr_options = list(DRY_OPTIONS.values())
 

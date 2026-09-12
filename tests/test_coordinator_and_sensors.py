@@ -649,3 +649,29 @@ async def test_select_spin_speed_linked_rinse_hold():
     client.set_spin_speed.assert_called_with(6, program_code=13, temp_code=2)
     client.set_rinse_hold.assert_called_with(True)
 
+
+@pytest.mark.asyncio
+async def test_coordinator_and_entities_use_stable_mac_unique_id():
+    """Verify coordinator.unique_id and entities use normalized MAC address when available."""
+    from custom_components.ifb_washer_local.const import CONF_MAC_ADDRESS
+    from custom_components.ifb_washer_local.sensor import IFBWasherSensor, SENSOR_TYPES
+    from custom_components.ifb_washer_local.switch import IFBWasherPowerSwitch
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.160"
+
+    mock_entry = MagicMock()
+    mock_entry.data = {CONF_MAC_ADDRESS: "20:f8:5e:5d:59:0b"}
+    mock_entry.unique_id = "20f85e5d590b"
+
+    coord = IFBWasherCoordinator(hass, client, entry=mock_entry)
+    assert coord.unique_id == "20f85e5d590b"
+
+    sensor = IFBWasherSensor(coord, SENSOR_TYPES[0])
+    assert sensor.unique_id == "20f85e5d590b_state"
+
+    power_switch = IFBWasherPowerSwitch(coord)
+    assert power_switch.unique_id == "20f85e5d590b_power_switch"
+
+

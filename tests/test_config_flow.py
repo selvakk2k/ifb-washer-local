@@ -561,7 +561,9 @@ async def test_setup_entry_prewarms_models_lookup(mock_hass):
 
     mock_hass.config_entries.async_forward_entry_setups = AsyncMock(return_value=True)
 
+    fake_models = MagicMock()
     with (
+        patch.dict("sys.modules", {"ifb_washer_models": fake_models}),
         patch(
             "custom_components.ifb_washer_local.coordinator.IFBWasherCoordinator.async_config_entry_first_refresh",
             new_callable=AsyncMock,

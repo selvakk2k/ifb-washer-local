@@ -149,7 +149,7 @@ class IFBWasherSensor(CoordinatorEntity[IFBWasherCoordinator], SensorEntity):
         """Initialize the sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.client.host}_{description.key}"
+        self._attr_unique_id = f"{coordinator.unique_id}_{description.key}"
         self._attr_device_info = coordinator.device_info
 
     @property

@@ -107,7 +107,7 @@ class IFBWasherPowerSwitch(
             icon="mdi:power",
             device_class=SwitchDeviceClass.SWITCH,
         )
-        self._attr_unique_id = f"{coordinator.client.host}_power_switch"
+        self._attr_unique_id = f"{coordinator.unique_id}_power_switch"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -155,7 +155,7 @@ class IFBWasherChildLockSwitch(
             translation_key="child_lock_switch",
             icon="mdi:account-lock",
         )
-        self._attr_unique_id = f"{coordinator.client.host}_child_lock_switch"
+        self._attr_unique_id = f"{coordinator.unique_id}_child_lock_switch"
         self._attr_device_info = coordinator.device_info
 
     @property
@@ -211,7 +211,7 @@ class IFBWasherFeatureSwitch(
             translation_key=translation_key,
             icon=icon,
         )
-        self._attr_unique_id = f"{coordinator.client.host}_{key}_switch"
+        self._attr_unique_id = f"{coordinator.unique_id}_{key}_switch"
         self._attr_device_info = coordinator.device_info
 
     @property

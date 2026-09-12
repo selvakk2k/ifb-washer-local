@@ -151,6 +151,21 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
 
     @property
+    def unique_id(self) -> str:
+        """Return a stable, invariant unique identifier for entity creation.
+
+        Prefers the normalized hardware MAC address so that entities do not
+        duplicate when an IP address changes or is updated.
+        """
+        if self.entry:
+            mac = self.entry.data.get(CONF_MAC_ADDRESS)
+            if mac:
+                return mac.lower().replace(":", "")
+            if self.entry.unique_id:
+                return str(self.entry.unique_id).lower().replace(":", "")
+        return self.client.host
+
+    @property
     def initial_cycle_duration(self) -> int:
         """Return the initial duration of the current cycle in minutes."""
         return self._initial_cycle_duration
