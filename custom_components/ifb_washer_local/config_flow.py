@@ -8,7 +8,13 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.components.dhcp import DhcpServiceInfo
+try:
+    from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
+except ImportError:
+    try:
+        from homeassistant.components.dhcp import DhcpServiceInfo  # type: ignore[no-redef]
+    except ImportError:
+        DhcpServiceInfo = object  # type: ignore[assignment, misc]
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_NAME
 from homeassistant.core import callback
