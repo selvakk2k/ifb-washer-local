@@ -77,9 +77,19 @@ class IFBWasherClient:
         self._lock = asyncio.Lock()
 
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create the aiohttp ClientSession."""
+        """Get or create the aiohttp ClientSession with a force_close TCP connector.
+
+        force_close=True guarantees every connection terminates cleanly with
+        TCP FIN immediately after reading response bytes, preventing socket
+        exhaustion on the GainSpan embedded module.
+        """
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            connector = aiohttp.TCPConnector(
+                force_close=True,
+                enable_cleanup_closed=True,
+                limit=1,
+            )
+            self._session = aiohttp.ClientSession(connector=connector)
             self._owns_session = True
         return self._session
 
@@ -107,6 +117,7 @@ class IFBWasherClient:
                         if response.status != 200:
                             raise IFBConnectionError(f"HTTP request returned status {response.status}")
                         data = await response.read()
+                        response.close()
                         _LOGGER.debug("Received raw response from %s (%d bytes): %s", self.host, len(data), data.hex())
                         return data
                 except (asyncio.TimeoutError, aiohttp.ClientError) as err:

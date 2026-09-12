@@ -301,6 +301,11 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
             return state
         except (IFBTimeoutError, IFBConnectionError) as err:
+            # During network drops/reboots, relax polling interval to 30-45s
+            # so Home Assistant does not hammer the reconnecting Wi-Fi stack with SYN packets
+            disconnect_interval = max(30, self._current_interval)
+            if self.update_interval != timedelta(seconds=disconnect_interval):
+                self.update_interval = timedelta(seconds=disconnect_interval)
             raise UpdateFailed(
                 f"Connection error querying IFB washer at {self.client.host}: {err}"
             ) from err

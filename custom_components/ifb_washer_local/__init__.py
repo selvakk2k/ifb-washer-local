@@ -7,7 +7,6 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 try:
     from .ifb_washer_local import DEFAULT_PORT, IFBWasherClient
@@ -29,8 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: IFBWasherConfigEntry) ->
     host: str = entry.data[CONF_HOST]
     port: int = entry.data.get(CONF_PORT, DEFAULT_PORT)
 
-    session = async_get_clientsession(hass)
-    client = IFBWasherClient(host=host, port=port, session=session)
+    client = IFBWasherClient(host=host, port=port)
     # Pre-warm models lookup catalog in executor to prevent blocking I/O on event loop
     try:
         from ifb_washer_models import get_lookup
