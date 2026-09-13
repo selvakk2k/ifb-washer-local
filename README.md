@@ -1,5 +1,9 @@
 # IFB Washer Local Integration (`ifb-washer-local`)
 
+<p align="center">
+  <img src="custom_components/ifb_washer_local/brand/logo.png" alt="IFB Washer Local Logo" width="380">
+</p>
+
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
 [![Stable](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?label=Stable&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases/latest)
 [![Beta](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?include_prereleases&label=Beta&color=orange&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases)
@@ -38,6 +42,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 * **Hardware Profile Calibration**: Automated, non-intrusive capability discovery directly from physical machine firmware for model-accurate program limits.
 * **Standalone Profile Backups**: Automated JSON profile backups with privacy-safe host IP redaction and full UI Export/Import support.
 * **Adaptive Polling**: Automatically speeds up polling intervals during active wash cycles (every 5 seconds) and relaxes while idle in standby (every 15 seconds) to minimize local network traffic.
+* **Dynamic IP Self-Healing**: Automatically scans and re-binds to the washing machine if its local IP address changes under dynamic DHCP, even across router and subnet boundaries.
 * **Zero Authentication Friction**: Direct binary packet communication eliminates expired auth tokens and cloud outages.
 
 ---
@@ -49,6 +54,9 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 | IFB Washer Dryer 742 Series | Local Wi-Fi (Port 80) | Live Telemetry, Program Selection, Child Lock, Start/Pause, Heated Dry | ✅ Hardware Verified |
 | IFB Front Load Senator / Executive Series | Local Wi-Fi (Port 80) | Status telemetry, Program Selection, and basic controls | ⚠️ Experimental |
 | IFB Top Load Washers | Local Wi-Fi (Port 80) | Status query frame supported | ⚠️ Experimental |
+
+> [!NOTE]
+> Models not listed in this table are not blocked during setup. Any Wi-Fi-enabled IFB washer or washer-dryer communicating via port 80 will connect. The initial setup wizard allows automatic model matching via the models database, physical firmware calibration, or safe default limits.
 
 ---
 
@@ -73,6 +81,8 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 ---
 
 ## Installation
+
+* **Prerequisites**: Home Assistant **2024.1.0** or newer.
 
 ### Method 1: Using HACS (Recommended)
 
@@ -100,7 +110,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
    * **Calibrate Hardware Now**: Run a live probe (Quick, Simple, or Detailed) directly against physical firmware while in Standby.
    * **Import Saved Profile**: Paste a previously exported JSON capability profile envelope.
    * **Skip (Safe Defaults)**: Use standard front-load / washer-dryer default limits.
-5. * Reserve a static DHCP IP address for your washing machine in your home Wi-Fi router settings. 
+5. While a static DHCP IP reservation in your router settings is recommended for fastest initial connection, dynamic DHCP is fully supported via automatic subnet discovery.
 
 ---
 
@@ -201,7 +211,7 @@ logger:
 ```
 
 ### 2. Network Troubleshooting
-* **Static DHCP Reservation**: Reserve a static IP address for your washing machine in your Wi-Fi router settings to avoid address changes when the machine powers down into Standby.
+* **Static DHCP Reservation**: Recommended for immediate boot-up connection. However, if the IP address changes due to a router reboot or dynamic DHCP renewal, the integration will automatically sweep the subnet and re-bind to the new address.
 * **Direct LAN Reachability**: Verify your Home Assistant server can reach the washer on port 80 over your local subnet without cross-VLAN firewall blocks.
 
 ---
