@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+import ipaddress
 import logging
+import time
 from typing import Any
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.update_coordinator import (
@@ -116,6 +119,8 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         self._current_interval = standby_interval
         self._initial_cycle_duration: int = 0
         self._is_calibrating: bool = False
+        self._consecutive_connection_failures: int = 0
+        self._last_discovery_sweep: float = 0.0
 
         # Determine configured appliance family and program matrix
         self.appliance_family = (
@@ -258,6 +263,7 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         """Fetch the latest state from the washing machine."""
         try:
             state = await self.client.get_state()
+            self._consecutive_connection_failures = 0
 
             # Track initial cycle duration when a cycle starts or resumes
             if state.is_running:
@@ -301,16 +307,115 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
 
             return state
         except (IFBTimeoutError, IFBConnectionError) as err:
+            self._consecutive_connection_failures += 1
+
             # During network drops/reboots, relax polling interval to 30-45s
             # so Home Assistant does not hammer the reconnecting Wi-Fi stack with SYN packets
             disconnect_interval = max(30, self._current_interval)
             if self.update_interval != timedelta(seconds=disconnect_interval):
                 self.update_interval = timedelta(seconds=disconnect_interval)
+
+            # If device has consecutively failed 3+ times, attempt universal /24 subnet rediscovery
+            if self._consecutive_connection_failures >= 3:
+                recovered_state = await self._async_attempt_auto_discovery()
+                if recovered_state is not None:
+                    return recovered_state
+
             raise UpdateFailed(
                 f"Connection error querying IFB washer at {self.client.host}: {err}"
             ) from err
         except IFBError as err:
             raise UpdateFailed(f"Protocol error querying IFB washer: {err}") from err
+
+    async def _async_attempt_auto_discovery(self) -> WasherState | None:
+        """Attempt to rediscover the washer on its local /24 subnet if the dynamic IP shifted."""
+        now = time.monotonic()
+        # Rate-limit full subnet sweeps to at most once every 10 minutes (600s)
+        if now - self._last_discovery_sweep < 600:
+            return None
+
+        self._last_discovery_sweep = now
+        current_host = self.client.host
+
+        try:
+            network = ipaddress.ip_network(f"{current_host}/24", strict=False)
+        except ValueError:
+            _LOGGER.debug("Cannot derive subnet from configured host %s", current_host)
+            return None
+
+        _LOGGER.info(
+            "IFB Washer at %s unreachable (%d consecutive failures); scanning %s for relocated host",
+            current_host,
+            self._consecutive_connection_failures,
+            network,
+        )
+
+        candidate_hosts = [
+            str(ip) for ip in network.hosts() if str(ip) != current_host
+        ]
+
+        semaphore = asyncio.Semaphore(30)
+
+        async def _probe_host(ip_str: str) -> str | None:
+            async with semaphore:
+                url = f"http://{ip_str}:{self.client.port}/gainspan/profile/ifb"
+                try:
+                    async with self.client.session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=0.6)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.read()
+                            if len(data) == 38 and (data[0] == 0x63 or data == b"\x00" * 38):
+                                probe_client = IFBWasherClient(
+                                    host=ip_str,
+                                    port=self.client.port,
+                                    session=self.client.session,
+                                    timeout=2.0,
+                                )
+                                probe_state = await probe_client.get_state()
+                                if probe_state and probe_state.state_name:
+                                    return ip_str
+                except Exception:
+                    return None
+            return None
+
+        tasks = [_probe_host(h) for h in candidate_hosts]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        matched_ips = [r for r in results if isinstance(r, str) and r]
+
+        if len(matched_ips) == 1:
+            new_ip = matched_ips[0]
+            _LOGGER.info(
+                "Auto-discovery: IFB Washer successfully relocated from %s to %s — updating host",
+                current_host,
+                new_ip,
+            )
+            self.client.host = new_ip
+            self._consecutive_connection_failures = 0
+
+            # Persist the new IP in config entry data
+            if self.entry:
+                try:
+                    new_data = {**self.entry.data, CONF_HOST: new_ip}
+                    self.hass.config_entries.async_update_entry(self.entry, data=new_data)
+                except Exception as err:
+                    _LOGGER.debug("Could not update config entry data during auto-discovery: %s", err)
+
+            # Fetch fresh state with the updated client
+            try:
+                state = await self.client.get_state()
+                return state
+            except Exception:
+                return None
+        elif len(matched_ips) > 1:
+            _LOGGER.warning(
+                "Auto-discovery found multiple IFB washer candidates on %s: %s; ambiguous",
+                network,
+                matched_ips,
+            )
+
+        return None
 
     def get_program_capabilities(
         self, program_code: int | None = None
