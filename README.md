@@ -213,6 +213,10 @@ logger:
 ### 2. Network Troubleshooting
 * **Static DHCP Reservation**: Recommended for immediate boot-up connection. However, if the IP address changes due to a router reboot or dynamic DHCP renewal, the integration will automatically sweep the subnet and re-bind to the new address.
 * **Direct LAN Reachability**: Verify your Home Assistant server can reach the washer on port 80 over your local subnet without cross-VLAN firewall blocks.
+* **Mesh Wi-Fi Networks & Scheduled Reboots**: If your mesh network (e.g. TP-Link Deco, Netgear Orbi, Eero) is configured with automated daily or weekly reboots, the washing machine's internal Wi-Fi module may go offline permanently until power is toggled at the wall socket. This happens because mesh access points transmit wireless beacons before their mesh backhaul has finished reconnecting to the DHCP router, exhausting the module's connection retry budget.
+  * **Resolution (Recommended)**: Pair the washing machine to the 2.4 GHz Wi-Fi network of your non-rebooting primary ISP router or a dedicated standalone IoT access point. The integration's cross-subnet auto-discovery will connect and track the machine automatically across router boundaries.
+  * **Alternative**: Disable automated reboot schedules on your mesh system or exclude the specific access point serving the appliance.
+
 
 ---
 
