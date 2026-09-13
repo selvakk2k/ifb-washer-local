@@ -104,13 +104,14 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 
 1. In Home Assistant, navigate to **Settings** > **Devices & Services**.
 2. Click **Add Integration** and search for **IFB Washer Local**.
-3. Enter the local IP address assigned to your washing machine (e.g. `192.168.0.100`) and click **Submit**.
-4. The integration automatically queries the appliance and presents the **Initial Capability Setup Wizard**:
-   * **Use Models Database**: Automatically matches the model against the [`ifb-washer-models`](https://pypi.org/project/ifb-washer-models/) database for instant capability provisioning.
-   * **Calibrate Hardware Now**: Run a live probe (Quick, Simple, or Detailed) directly against physical firmware while in Standby.
-   * **Import Saved Profile**: Paste a previously exported JSON capability profile envelope.
-   * **Skip (Safe Defaults)**: Use standard front-load / washer-dryer default limits.
-5. While a static DHCP IP reservation in your router settings is recommended for fastest initial connection, dynamic DHCP is fully supported via automatic subnet discovery.
+3. In **Connect Washer**, enter your washing machine's **IP Address** (e.g. `192.168.0.100`), **Port** (`80`), and optional **Custom Friendly Name**.
+4. In **Select Device Type** and **Select Model**, select your appliance series (or choose Custom Model).
+5. In **Calibrate Capabilities**, choose your preferred capability discovery mode:
+   * **Standard (Skip Test)**: Skip live testing and apply catalog defaults instantly.
+   * **Quick Probe (~2m)**: Fast probe on core wash programs (Mix/Daily, Cotton, Wash+Dry).
+   * **Simple (~4-5m)**: Verifies all dial programs within model constraints.
+   * **Detailed Probe (~15m)**: Comprehensive physical capability discovery across all dial positions.
+6. While a static DHCP IP reservation in your router settings is recommended for fastest initial connection, dynamic DHCP is fully supported via automatic subnet discovery.
 
 ---
 
@@ -120,16 +121,18 @@ The integration can probe your physical appliance while in Standby to build a mo
 
 ### Running Calibration from Options
 1. Navigate to **Settings** > **Devices & Services** > **IFB Washer Local** > **Configure**.
-2. Choose **Calibrate Hardware Capabilities Profile** and select a probing mode:
-   * **Quick (~2 minutes)**: Probes 8 core wash programs.
-   * **Simple (~4-5 minutes)**: Probes all 14 standard dial programs.
-   * **Detailed (~12-14 minutes)**: Full deep scan across all programs and modifier combinations with conservative delays.
+2. Select **Hardware Capability Calibration** and choose a probing mode:
+   * **Standard (Skip Test)**: Restores standard catalog profile defaults.
+   * **Quick Probe (~2m)**: Probes 8 core wash programs.
+   * **Simple (~4-5m)**: Probes all standard dial programs.
+   * **Detailed Probe (~15m)**: Full deep scan across all programs and modifier combinations.
 
 ### Standalone Profile Backups & Portability
 * **Automatic Local File**: Calibrated profiles are automatically saved to `/config/ifb_washer_profiles/{model}_profile.json` inside your Home Assistant directory.
-* **Export / View Active Profile**: View and copy the active profile JSON envelope directly from the Configure menu.
+* **Manage Profile (Export / Import / Edit)**: View, export, or edit active capability profiles directly from the Configure menu.
 * **Restore / Import Profile**: Paste or restore any previously saved profile JSON to instantly configure capabilities without re-probing.
 * **Privacy Safe**: All exported profile envelopes omit host IP addresses and network identifiers.
+
 
 ---
 
