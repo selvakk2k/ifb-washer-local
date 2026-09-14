@@ -120,6 +120,7 @@ class IFBWasherPowerSwitch(
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Power on the machine."""
         try:
+            self.coordinator.reset_cycle_completed_timer()
             state = await self.coordinator.client.power_on()
             self.coordinator.async_set_updated_data(state)
             await self.coordinator.async_request_refresh()
@@ -131,6 +132,7 @@ class IFBWasherPowerSwitch(
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Power off the machine into low-power standby."""
         try:
+            self.coordinator.reset_cycle_completed_timer()
             state = await self.coordinator.client.power_off()
             self.coordinator.async_set_updated_data(state)
             await self.coordinator.async_request_refresh()

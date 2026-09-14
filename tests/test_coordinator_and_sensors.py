@@ -675,3 +675,99 @@ async def test_coordinator_and_entities_use_stable_mac_unique_id():
     assert power_switch.unique_id == "20f85e5d590b_power_switch"
 
 
+@pytest.mark.asyncio
+async def test_coordinator_auto_standby_complete_transition():
+    """Verify coordinator automatically transitions to Standby and is_powered_on=False after 15 min in Complete."""
+    from custom_components.ifb_washer_local.ifb_washer_local import MachineState
+    from custom_components.ifb_washer_local.coordinator import AUTO_STANDBY_COMPLETE_TIMEOUT_SECONDS
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+
+    coord = IFBWasherCoordinator(hass, client)
+    assert coord._cycle_completed_timestamp is None
+
+    # Setup state in COMPLETE
+    state_complete = create_mock_state(is_running=False, is_complete=True)
+    state_complete.state_code = MachineState.COMPLETE
+    state_complete.state_name = "Complete"
+    state_complete.is_powered_on = True
+    client.get_state = AsyncMock(return_value=state_complete)
+
+    with patch("time.monotonic") as mock_monotonic:
+        # First poll at t=1000
+        mock_monotonic.return_value = 1000.0
+        result1 = await coord._async_update_data()
+        assert coord._cycle_completed_timestamp == 1000.0
+        assert result1.state_code == MachineState.COMPLETE
+        assert result1.is_powered_on is True
+
+        # Second poll at t=1000 + 800s (under 900s timeout)
+        mock_monotonic.return_value = 1800.0
+        result2 = await coord._async_update_data()
+        assert result2.state_code == MachineState.COMPLETE
+        assert result2.is_powered_on is True
+
+        # Third poll at t=1000 + 901s (over 15 min timeout)
+        mock_monotonic.return_value = 1901.0
+        result3 = await coord._async_update_data()
+        assert result3.state_code == MachineState.STANDBY
+        assert result3.state_name == "Standby"
+        assert result3.is_powered_on is False
+
+        # Physical machine transitions to Standby/Starting on next physical action -> clears timer
+        state_starting = create_mock_state(is_running=True)
+        state_starting.state_code = MachineState.STARTING
+        client.get_state = AsyncMock(return_value=state_starting)
+        mock_monotonic.return_value = 2000.0
+        result4 = await coord._async_update_data()
+        assert coord._cycle_completed_timestamp is None
+        assert result4.state_code == MachineState.STARTING
+
+
+@pytest.mark.asyncio
+async def test_coordinator_auto_standby_reset_on_manual_power():
+    """Verify reset_cycle_completed_timer clears the timer immediately."""
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+
+    coord = IFBWasherCoordinator(hass, client)
+    coord._cycle_completed_timestamp = 500.0
+
+    coord.reset_cycle_completed_timer()
+    assert coord._cycle_completed_timestamp is None
+
+
+@pytest.mark.asyncio
+async def test_coordinator_auto_standby_real_dataclass():
+    """Verify dataclasses.replace works seamlessly on real WasherState dataclass instances."""
+    from custom_components.ifb_washer_local.ifb_washer_local import MachineState
+    from ifb_washer_local.protocol import compute_checksums, parse_status_frame
+
+    hass = MagicMock(spec=HomeAssistant)
+    client = MagicMock()
+    client.host = "192.168.0.100"
+
+    coord = IFBWasherCoordinator(hass, client)
+
+    raw = bytearray.fromhex("6324810001070d01060002220000000000010c00002200000000000000000101000000017af4")
+    raw[30] = 13  # MachineState.COMPLETE
+    c1, c2 = compute_checksums(raw[:-2])
+    raw[-2], raw[-1] = c1, c2
+    real_state = parse_status_frame(bytes(raw))
+    assert real_state.state_code == MachineState.COMPLETE
+    assert real_state.is_powered_on is True
+
+    client.get_state = AsyncMock(return_value=real_state)
+
+    with patch("time.monotonic") as mock_monotonic:
+        mock_monotonic.return_value = 1000.0
+        await coord._async_update_data()
+
+        mock_monotonic.return_value = 2000.0  # > 900s
+        result = await coord._async_update_data()
+        assert result.state_code == MachineState.STANDBY
+        assert result.state_name == "Standby"
+        assert result.is_powered_on is False

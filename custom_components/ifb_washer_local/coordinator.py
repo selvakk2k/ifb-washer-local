@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 from datetime import datetime, timedelta
 import ipaddress
 import logging
@@ -28,6 +29,7 @@ try:
         IFBError,
         IFBTimeoutError,
         IFBWasherClient,
+        MachineState,
         PROGRAM_CODES_WASHER_DRYER,
         ProgramCapabilities,
         WasherState,
@@ -54,6 +56,7 @@ except (ImportError, ValueError):
         IFBError,
         IFBTimeoutError,
         IFBWasherClient,
+        MachineState,
         PROGRAM_CODES_WASHER_DRYER,
         ProgramCapabilities,
         WasherState,
@@ -90,6 +93,10 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Auto-standby timeout after cycle completion (15 minutes).
+# IFB front panels automatically power down display LEDs after ~15 minutes of completion.
+AUTO_STANDBY_COMPLETE_TIMEOUT_SECONDS: float = 900.0
+
 
 class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
     """Coordinator to manage polling data from an IFB washing machine over LAN."""
@@ -121,6 +128,8 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         self._is_calibrating: bool = False
         self._consecutive_connection_failures: int = 0
         self._last_discovery_sweep: float = 0.0
+        self.auto_standby_timeout: float = AUTO_STANDBY_COMPLETE_TIMEOUT_SECONDS
+        self._cycle_completed_timestamp: float | None = None
 
         # Determine configured appliance family and program matrix
         self.appliance_family = (
@@ -259,6 +268,16 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             configuration_url=f"http://{self.client.host}",
         )
 
+    def reset_cycle_completed_timer(self) -> None:
+        """Reset the post-cycle completion auto-standby timer."""
+        self._cycle_completed_timestamp = None
+
+    def async_set_updated_data(self, data: WasherState) -> None:
+        """Manually update data and clear auto-standby completion timer if not Complete."""
+        if getattr(data, "state_code", None) != MachineState.COMPLETE:
+            self._cycle_completed_timestamp = None
+        super().async_set_updated_data(data)
+
     async def _async_update_data(self) -> WasherState:
         """Fetch the latest state from the washing machine."""
         try:
@@ -274,6 +293,32 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
                     self._initial_cycle_duration = state.remaining_minutes
             else:
                 self._initial_cycle_duration = 0
+
+            # Auto-standby transition:
+            # When a wash or dry cycle completes (State: Complete), the IFB MCU keeps the display on
+            # for ~15 minutes before sleeping the front panel. Because the MCU does not push an
+            # unsolicited UART update on sleep, we synthesize Standby (display off) once 15 min elapses.
+            if state.state_code == MachineState.COMPLETE:
+                now_mono = time.monotonic()
+                if self._cycle_completed_timestamp is None:
+                    self._cycle_completed_timestamp = now_mono
+                elif (
+                    self.auto_standby_timeout > 0
+                    and (now_mono - self._cycle_completed_timestamp) >= self.auto_standby_timeout
+                ):
+                    if dataclasses.is_dataclass(state):
+                        state = dataclasses.replace(
+                            state,
+                            is_powered_on=False,
+                            state_code=MachineState.STANDBY,
+                            state_name="Standby",
+                        )
+                    else:
+                        state.is_powered_on = False
+                        state.state_code = MachineState.STANDBY
+                        state.state_name = "Standby"
+            else:
+                self._cycle_completed_timestamp = None
 
             # Adaptive polling interval: faster updates while washing, relaxed while idle
             standby_interval = DEFAULT_SCAN_INTERVAL_STANDBY
