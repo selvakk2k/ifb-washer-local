@@ -1,7 +1,7 @@
 # IFB Washer Local Integration (`ifb-washer-local`)
 
 <p align="center">
-  <img src="custom_components/ifb_washer_local/brand/logo.png" alt="IFB Washer Local Logo" width="380">
+  <img src="custom_components/ifb_washer_local/brand/logo@2x.png" alt="IFB Washer Local Logo" width="380">
 </p>
 
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
