@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect Washer",
-        "description": "Enter the local IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.",
+        "description": "Enter the local IP address of your IFB washing machine. Ensure the appliance is powered on and connected to your home Wi-Fi.\n\nNote: Requires an IFB appliance equipped with a GainSpan local Wi-Fi controller (MAC address prefix 20:F8:5E). Cloud-only models or machines without local port 80 are not compatible.",
         "data": {
           "host": "IP Address",
           "port": "Port"
@@ -85,7 +85,7 @@
       },
       "reconfigure": {
         "title": "Reconfigure IFB Washer",
-        "description": "Update connection settings for your IFB washing machine.",
+        "description": "Update connection settings for your IFB washing machine (requires local GainSpan module on port 80).",
         "data": {
           "host": "IP Address",
           "port": "Port"
@@ -100,7 +100,7 @@
       "calibrate_progress": "Probing program capabilities on your washing machine..."
     },
     "error": {
-      "cannot_connect": "Failed to connect to the washing machine. Please verify the IP address and ensure the machine is powered on.",
+      "cannot_connect": "Failed to connect to the washing machine. Verify the IP address, ensure the machine is powered on, and confirm your appliance has a local GainSpan Wi-Fi module (MAC prefix 20:F8:5E). Cloud-only models or machines without local port 80 are not compatible.",
       "invalid_response": "Received an unexpected response format from the appliance.",
       "unknown": "Unexpected error occurred during connection test."
     },

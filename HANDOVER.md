@@ -10,6 +10,7 @@ This document serves as the primary technical context, protocol reference, and a
 * **Primary Target Device**: IFB Front Load Washer Dryer (`WD EXECUTIVE ZXS`, 7kg wash / 4kg dry).
 * **Target IP**: `192.168.0.100:80` (Static DHCP reservation on local network).
 * **Wi-Fi Controller**: GainSpan / Realtek embedded Wi-Fi module (`20:f8:5e:5d:59:0b`).
+* **Hardware Scope & Caveat**: This integration relies on the unauthenticated local HTTP server hosted by the GainSpan module (MAC prefix `20:F8:5E`). Newer production runs or firmware revisions that communicate strictly via cloud MQTT (or close port 80) are incompatible with local control.
 * **Verification Milestones**:
   - Direct local HTTP communication verified on port 80 (`/gainspan/profile/ifb`).
   - Active POST polling validated to force immediate UART status retrieval from MCU.

@@ -10,6 +10,9 @@
 [![AI-Assisted](https://img.shields.io/badge/AI%20Assisted-Antigravity%20%7C%20Claude-blueviolet?style=flat-square&logo=google)](https://github.com/selvakk2k)
 [![AI Attribution](https://img.shields.io/badge/AI%20Attribution-AIA%20PAI%20Nc%20Hin-orange?style=flat-square)](https://aiattribution.github.io/interpret-attribution)
 
+> [!IMPORTANT]
+> **Hardware Compatibility Prerequisite**: This integration operates 100% locally and connects directly to appliances equipped with an embedded **GainSpan Wi-Fi module** (MAC address prefix `20:F8:5E`) listening on local port 80. Models from newer production runs or firmware revisions that communicate exclusively via cloud MQTT (or where local port 80 is closed) are not compatible. Before installing, verify in your router's DHCP client list that your washer's MAC address starts with `20:F8:5E`.
+
 Zero-cloud, 100% local Home Assistant custom integration for IFB front-load washing machines and washer dryers. 
 
 Directly communicates with the internal Wi-Fi module on port 80 over your local home network without requiring cloud accounts, mobile apps, SMS OTPs, or active internet connectivity.
@@ -56,7 +59,7 @@ Directly communicates with the internal Wi-Fi module on port 80 over your local 
 | IFB Top Load Washers | Local Wi-Fi (Port 80) | Status query frame supported | ⚠️ Experimental |
 
 > [!NOTE]
-> Models not listed in this table are not blocked during setup. Any Wi-Fi-enabled IFB washer or washer-dryer communicating via port 80 will connect. The initial setup wizard allows automatic model matching via the models database, physical firmware calibration, or safe default limits.
+> Models not listed in this table are not blocked during setup as long as they carry the local GainSpan Wi-Fi module (`20:F8:5E` MAC prefix) listening on port 80. The initial setup wizard allows automatic model matching via the models database, physical firmware calibration, or safe default limits.
 
 ---
 
@@ -214,6 +217,7 @@ logger:
 ```
 
 ### 2. Network Troubleshooting
+* **Verifying Hardware Compatibility (MAC Address Check)**: If setup fails with "Failed to connect", check your home router's connected client list. Compatible appliances will have a MAC address beginning with `20:F8:5E` (GainSpan Corporation). If your machine has a different MAC vendor prefix or port 80 is closed, your model communicates exclusively via cloud MQTT and cannot be added locally.
 * **Static DHCP Reservation**: Recommended for immediate boot-up connection. However, if the IP address changes due to a router reboot or dynamic DHCP renewal, the integration will automatically sweep the subnet and re-bind to the new address.
 * **Direct LAN Reachability**: Verify your Home Assistant server can reach the washer on port 80 over your local subnet without cross-VLAN firewall blocks.
 * **Mesh Wi-Fi Networks & Scheduled Reboots**: If your mesh network (e.g. TP-Link Deco, Netgear Orbi, Eero) is configured with automated daily or weekly reboots, the washing machine's internal Wi-Fi module may go offline permanently until power is toggled at the wall socket. This happens because mesh access points transmit wireless beacons before their mesh backhaul has finished reconnecting to the DHCP router, exhausting the module's connection retry budget.
