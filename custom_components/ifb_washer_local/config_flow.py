@@ -1064,7 +1064,7 @@ class IFBWasherOptionsFlowHandler(OptionsFlow):
                     CONF_SCAN_INTERVAL_STANDBY, default=current_standby
                 ): selector.NumberSelector(
                     selector.NumberSelectorConfig(
-                        min=5, max=120, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="seconds"
+                        min=5, max=300, mode=selector.NumberSelectorMode.BOX, unit_of_measurement="seconds"
                     )
                 ),
                 vol.Optional(

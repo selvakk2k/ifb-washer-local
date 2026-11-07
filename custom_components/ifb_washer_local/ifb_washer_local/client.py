@@ -106,18 +106,25 @@ class IFBWasherClient:
 
             _LOGGER.debug("Sending raw command to %s: %s", self.host, payload.hex())
             last_error: Exception | None = None
+            timeout_cfg = aiohttp.ClientTimeout(
+                total=self._timeout,
+                connect=min(3.0, self._timeout),
+                sock_connect=min(3.0, self._timeout),
+                sock_read=min(5.0, self._timeout),
+            )
             for attempt in range(2):
                 try:
                     async with session.post(
                         url,
                         data=payload,
                         headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=self._timeout),
+                        timeout=timeout_cfg,
                     ) as response:
                         if response.status != 200:
                             raise IFBConnectionError(f"HTTP request returned status {response.status}")
                         data = await response.read()
                         response.close()
+                        await asyncio.sleep(0.05)
                         _LOGGER.debug("Received raw response from %s (%d bytes): %s", self.host, len(data), data.hex())
                         return data
                 except (asyncio.TimeoutError, aiohttp.ClientError) as err:

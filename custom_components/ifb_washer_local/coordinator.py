@@ -334,8 +334,9 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             target_interval = (
                 running_interval if state.is_running else standby_interval
             )
-            if target_interval != self._current_interval:
-                self.update_interval = timedelta(seconds=target_interval)
+            target_td = timedelta(seconds=target_interval)
+            if self.update_interval != target_td or target_interval != self._current_interval:
+                self.update_interval = target_td
                 self._current_interval = target_interval
 
             _LOGGER.debug(
@@ -354,9 +355,10 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
         except (IFBTimeoutError, IFBConnectionError) as err:
             self._consecutive_connection_failures += 1
 
-            # During network drops/reboots, relax polling interval to 30-45s
+            # During network drops/reboots, apply exponential backoff (30s -> 60s -> 120s -> 240s -> max 300s)
             # so Home Assistant does not hammer the reconnecting Wi-Fi stack with SYN packets
-            disconnect_interval = max(30, self._current_interval)
+            backoff_multiplier = 2 ** min(self._consecutive_connection_failures - 1, 4)
+            disconnect_interval = min(300, max(30, self._current_interval) * backoff_multiplier)
             if self.update_interval != timedelta(seconds=disconnect_interval):
                 self.update_interval = timedelta(seconds=disconnect_interval)
 
@@ -364,6 +366,16 @@ class IFBWasherCoordinator(DataUpdateCoordinator[WasherState]):
             if self._consecutive_connection_failures >= 3:
                 recovered_state = await self._async_attempt_auto_discovery()
                 if recovered_state is not None:
+                    # Restore normal polling interval after successful rediscovery
+                    recovery_interval = (
+                        self.entry.options.get(CONF_SCAN_INTERVAL_RUNNING, DEFAULT_SCAN_INTERVAL_RUNNING)
+                        if self.entry and isinstance(getattr(self.entry, "options", None), dict) and recovered_state.is_running
+                        else self.entry.options.get(CONF_SCAN_INTERVAL_STANDBY, DEFAULT_SCAN_INTERVAL_STANDBY)
+                        if self.entry and isinstance(getattr(self.entry, "options", None), dict)
+                        else (DEFAULT_SCAN_INTERVAL_RUNNING if recovered_state.is_running else DEFAULT_SCAN_INTERVAL_STANDBY)
+                    )
+                    self.update_interval = timedelta(seconds=recovery_interval)
+                    self._current_interval = recovery_interval
                     return recovered_state
 
             raise UpdateFailed(
