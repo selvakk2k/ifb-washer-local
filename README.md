@@ -4,7 +4,7 @@
   <img src="custom_components/ifb_washer_local/brand/logo@2x.png" alt="IFB Washer Local Logo" width="380">
 </p>
 
-[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=flat-square)](https://github.com/hacs/integration)
+[![Marketplace Custom](https://img.shields.io/badge/Marketplace-Custom-41BDF5.svg?style=flat-square)](https://www.home-assistant.io/integrations/marketplace/)
 [![Stable](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?label=Stable&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases/latest)
 [![Beta](https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?include_prereleases&label=Beta&color=orange&style=flat-square)](https://github.com/selvakk2k/ifb-washer-local/releases)
 [![AI-Assisted](https://img.shields.io/badge/AI%20Assisted-Antigravity%20%7C%20Claude-blueviolet?style=flat-square&logo=google)](https://github.com/selvakk2k)
@@ -87,13 +87,27 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 
 * **Prerequisites**: Home Assistant **2024.1.0** or newer.
 
-### Method 1: Using HACS (Recommended)
+### Method 1: Via Home Assistant Marketplace (Recommended)
+
+*Requires Home Assistant **2026.11** or newer. (On an older version? Expand the legacy HACS instructions below.)*
+
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=selvakk2k&repository=ifb-washer-local&category=integration)
+
+1. Click the **Open Marketplace repository** button above, or go to **Settings** → **Marketplace** in Home Assistant.
+2. In the upper-right corner, select **Add from link**.
+3. Under **GitHub link**, enter `https://github.com/selvakk2k/ifb-washer-local` (connect your GitHub account if prompted), then select **Add**. *(If prompted for **Type**, select **Integration** and select **Add** again.)*
+4. Open **IFB Washer Local** from the list, select **Download**, and restart Home Assistant.
+
+<details>
+<summary>Home Assistant 2026.10 or older (Legacy HACS)</summary>
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=selvakk2k&repository=ifb-washer-local&category=integration)
 
 1. Click the **Open repository in HACS** button above, or open **HACS** from your Home Assistant sidebar.
 2. Click the top-right menu (⋮) → **Custom repositories** → Add `https://github.com/selvakk2k/ifb-washer-local` with category **Integration**.
 3. Search for **IFB Washer Local**, click **Download**, and restart Home Assistant.
+
+</details>
 
 ### Method 2: Manual Installation
 
