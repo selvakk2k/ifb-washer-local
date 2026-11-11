@@ -110,7 +110,7 @@ class IFBWasherClient:
                 total=self._timeout,
                 connect=min(3.0, self._timeout),
                 sock_connect=min(3.0, self._timeout),
-                sock_read=min(5.0, self._timeout),
+                sock_read=self._timeout,
             )
             for attempt in range(2):
                 try:
