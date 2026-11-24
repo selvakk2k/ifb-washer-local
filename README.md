@@ -223,7 +223,12 @@ logger:
     ifb_washer_local: debug
 ```
 
-### 2. Network Troubleshooting
+### 2. Core Diagnostics & Privacy
+* Go to **Settings → Devices & Services → IFB Washer Local** and select your appliance.
+* Under **Device info**, click **Download diagnostics** to save the sanitized diagnostic snapshot.
+* Sensitive network identifiers (host IP addresses, MAC addresses, and appliance serial numbers) are automatically redacted using Home Assistant's `async_redact_data` standard.
+
+### 3. Network Troubleshooting
 * **Verifying Hardware Compatibility (MAC Address Check)**: If setup fails with "Failed to connect", check your home router's connected client list. Compatible appliances will have a MAC address beginning with `20:F8:5E` (GainSpan Corporation). If your machine has a different MAC vendor prefix or port 80 is closed, your model communicates exclusively via cloud MQTT and cannot be added locally.
 * **Static DHCP Reservation**: Recommended for immediate boot-up connection. However, if the IP address changes due to a router reboot or dynamic DHCP renewal, the integration will automatically sweep the subnet and re-bind to the new address.
 * **Direct LAN Reachability**: Verify your Home Assistant server can reach the washer on port 80 over your local subnet without cross-VLAN firewall blocks.
