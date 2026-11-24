@@ -237,8 +237,13 @@ class IFBWasherConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
             except IFBError:
                 errors["base"] = "invalid_response"
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected error connecting to IFB washer at %s", host)
+            except Exception as err:  # pylint: disable=broad-except
+                _LOGGER.warning(
+                    "Unexpected error connecting to IFB washer at %s: %s",
+                    host,
+                    err,
+                    exc_info=True,
+                )
                 errors["base"] = "unknown"
             else:
                 self._host = host
