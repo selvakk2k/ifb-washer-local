@@ -4,6 +4,7 @@
   <img src="custom_components/ifb_washer_local/brand/logo@2x.png" alt="IFB Washer Local Logo" width="380">
 </p>
 
+<!-- ha-marketplace:exclude-start -->
 <p align="center">
   <a href="https://www.home-assistant.io/integrations/marketplace/"><img src="https://img.shields.io/badge/Marketplace-Custom-41BDF5.svg?style=flat-square" alt="Marketplace Custom"></a>
   <a href="https://github.com/selvakk2k/ifb-washer-local/releases/latest"><img src="https://img.shields.io/github/v/release/selvakk2k/ifb-washer-local?label=Stable&style=flat-square" alt="Stable"></a>
@@ -11,6 +12,7 @@
   <a href="https://github.com/selvakk2k"><img src="https://img.shields.io/badge/AI%20Assisted-Antigravity%20%7C%20Claude%20%7C%20CodeRabbit-blueviolet?style=flat-square" alt="AI-Assisted"></a>
   <a href="https://aiattribution.github.io/interpret-attribution"><img src="https://img.shields.io/badge/AI%20Attribution-AIA%20PAI%20Nc%20Hin-orange?style=flat-square" alt="AI Attribution"></a>
 </p>
+<!-- ha-marketplace:exclude-end -->
 
 > [!IMPORTANT]
 > **Hardware Compatibility Prerequisite**: This integration operates 100% locally and connects directly to appliances equipped with an embedded **GainSpan Wi-Fi module** (MAC address prefix `20:F8:5E`) listening on local port 80. Models from newer production runs or firmware revisions that communicate exclusively via cloud MQTT (or where local port 80 is closed) are not compatible. Before installing, verify in your router's DHCP client list that your washer's MAC address starts with `20:F8:5E`.
@@ -85,6 +87,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 
 ---
 
+<!-- ha-marketplace:exclude-start -->
 ## Installation
 
 * **Prerequisites**: Home Assistant **2024.1.0** or newer.
@@ -109,6 +112,7 @@ Frame validation is enforced by a two-byte checksum calculated using signed-byte
 3. Restart Home Assistant.
 
 ---
+<!-- ha-marketplace:exclude-end -->
 
 ## Configuration
 
@@ -239,6 +243,7 @@ logger:
 
 ---
 
+<!-- ha-marketplace:exclude-start -->
 ## My Integrations & Lovelace Cards
 
 | Integration / Card | Category | Description | Status |
@@ -255,6 +260,7 @@ logger:
 | [Tinxy Local Python](https://github.com/selvakk2k/ha-tinxylocal) | Integration | Pure-Python local control for Tinxy smart switches and modules | `Stable` |
 
 ---
+<!-- ha-marketplace:exclude-end -->
 
 ## Credits & License
 
